@@ -8,18 +8,14 @@ package net.q1cc.cfs.mmm.client.render;
  *
  * @author cfstras
  */
-public abstract class WorkerTask {
-    static final int PRIORITY_IDLE = 0;
-    static final int PRIORITY_MIN = 1;
-    static final int PRIORITY_NORM = 2;
-    static final int PRIORITY_MAX = 3;
+public abstract interface WorkerTask {
+    public static final int PRIORITY_IDLE = 0;
+    public static final int PRIORITY_MIN = 1;
+    public static final int PRIORITY_NORM = 2;
+    public static final int PRIORITY_MAX = 3;
     
-    boolean done=false;
-    int priority = PRIORITY_NORM;
+    public boolean done=false;
+    public int getPriority();
     
-    public WorkerTask(int prio){
-        this.priority = prio;
-    }
-    
-    abstract boolean doWork();
+    public boolean doWork();
 }

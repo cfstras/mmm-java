@@ -73,7 +73,7 @@ public class WorldOctree implements Serializable{
      * let's set it to 6, that makes 1/4 mio. blocks.
      * note: that's only 64 sidelength...
      */
-    static final int highestSubtreeLvl = 6;
+    static final int highestSubtreeLvl =4;
     
     /**
      * This shows if this subtree has already been generated.
@@ -106,7 +106,7 @@ public class WorldOctree implements Serializable{
      */
     public WorldOctree(Vec3d position) {
         this(null, highestSubtreeLvl,
-                -getSidelength(highestSubtreeLvl - 1), //the center of the block is sea-level.
+                -getSidelength(highestSubtreeLvl)/2, //the center of the block is sea-level.
                 position);
     }
 
@@ -260,7 +260,8 @@ public class WorldOctree implements Serializable{
                 WorldOctree oldSub=subtree;
                 subtree = subtree.parent;
                 if (subtree == null) {
-                    System.out.println("going higher than mainTree, was "+oldSub+" before");
+                    System.out.println("going higher than mainTree, was "+oldSub+" before, search for "+position+" level "+level);
+                    throw new RuntimeException("block search outside main tree");
                 }
                 search = true;
                 continue;

@@ -25,18 +25,18 @@ public class EarthGenerator extends WorldGenerator{
         if(levels>0){
             for(int i=0;i<8;i++){
                 generate(oc.getSubtree(i),blox,levels-1);
-                if(levels>=7)
+                if(levels>=5)
                     System.out.println("gen: l="+levels+" i="+i);
             }
         } else {
             //TODO implent funky sinewaves, iFFT's, imbapolynoms or other stuff somwhere around this line.
             pos=oc.position;
-            if(oc.height>0 && oc.height+Chunklet.csl>0){
+            if(oc.height>5 && oc.height+Chunklet.csl>5){
                 oc.block=null;
                 //blox[(int)pos.x][(int)pos.y][(int)pos.z]=null;
             }
             else {
-                oc.block = new Chunklet((int)oc.position.x,(int)oc.position.y,(int)oc.position.z);
+                oc.block = new Chunklet((int)oc.position.x,(int)oc.position.y,(int)oc.position.z,oc);
                 generate(oc.block);
             }
         } 
@@ -46,9 +46,9 @@ public class EarthGenerator extends WorldGenerator{
         for (int x = 0; x < Chunklet.csl; x++) {
             for (int y = 0; y < Chunklet.csl; y++) {
                 for (int z = 0; z < Chunklet.csl; z++) {
-                    if (c.posY + y == 0) {
+                    if (c.parent.height + y > -5 && c.parent.height + y < 5) {
                         c.blocks[x + Chunklet.csl * y + Chunklet.csl2 * z] = StaticBlock.GRASS;
-                    } else if (c.posY + y < 0 && c.posY + y > -30) {
+                    } else if (c.parent.height + y < -5 && c.parent.height + y > -100) {
                         c.blocks[x + Chunklet.csl * y + Chunklet.csl2 * z] = StaticBlock.STONE;
                     }
 

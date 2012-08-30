@@ -4,6 +4,7 @@ package net.q1cc.cfs.mmm.client.render;
 
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import net.q1cc.cfs.mmm.client.Client;
 import net.q1cc.cfs.mmm.common.math.Quaternionf;
 import net.q1cc.cfs.mmm.common.math.Vec3d;
@@ -19,6 +20,7 @@ import static net.q1cc.cfs.mmm.client.render.Primitives.*;
 
 import net.q1cc.cfs.mmm.common.Player;
 import net.q1cc.cfs.mmm.common.world.World;
+import net.q1cc.cfs.mmm.common.world.WorldOctree;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.Sys;
 import org.lwjgl.opengl.Display;
@@ -30,11 +32,12 @@ import org.lwjgl.opengl.GLContext;
 
 /**
  * @author claus
- * based on nehe's tutorial
- * @see <a href="http://lwjgl.org/">LWJGL Home Page</a>
  */
 public class MainGLRender extends Thread {
-    Worker[] workerThreads;
+    
+    WorkerTaskPool taskPool = new WorkerTaskPool();
+    
+    ConcurrentLinkedDeque<GLChunklet> chunksToBuffer = new ConcurrentLinkedDeque<GLChunklet>();
     
     private boolean fullscreen = false;
     private final String windowTitle = "mmm-java";
@@ -150,16 +153,27 @@ public class MainGLRender extends Thread {
     }
 
     private boolean render() {
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);          // Clear The Screen And The Depth Buffer
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glLoadIdentity();
         setCamera();
         
         // wireframe mode
         //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         
-        renderOctree(world.generateOctree, -1);
-        //System.out.println("frame drawn, blocks: "+Primitives.blocksRendered+" faces: "+Primitives.facesDrawn);
-
+        //TODO all the render methods here
+        renderOctree(world.generateOctree);
+        //TODO HUD here
+        
+        //TODO check if there is time
+        //now to buffer some chunks
+        if(!chunksToBuffer.isEmpty()){
+            for(int i=0;i<200;i++){ //TODO do as many as time allows us to
+                if(!chunksToBuffer.isEmpty())
+                    bufferChunk(chunksToBuffer.pop());
+            }
+        }
+        
+        
         return true;
     }
     
@@ -192,17 +206,26 @@ public class MainGLRender extends Thread {
         }
     }
     public void init() {
-        int numThreads = Runtime.getRuntime().availableProcessors();
         // start worker Threads
-        workerThreads = new Worker[numThreads];
-        for(int i=0;i<numThreads;i++) {
-            workerThreads[i] = new Worker();
-            workerThreads[i].setPriority((Thread.MIN_PRIORITY+Thread.MAX_PRIORITY)/2);
-            workerThreads[i].start();
-        }
+        taskPool.initWorkers();
+        // start loading the world and converting chunklets to glchunklets
+        
+        //since we have the full world already (debug mode), just convert all chunklets
+        taskPool.add(new WorkerTask(){
+            @Override
+            public boolean doWork() {
+                convertAllBlocks();
+                return true;
+            }
+
+            @Override
+            public int getPriority() {
+                return WorkerTask.PRIORITY_MAX;
+            }
+        });
         
         createWindow();
-        Mouse.setGrabbed(true);
+        Mouse.setGrabbed(false);
         initGL();
     }
 
@@ -230,11 +253,13 @@ public class MainGLRender extends Thread {
         // Really Nice Perspective Calculations
         glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
         
-        Primitives.cubeList=Primitives.generateCubeList();
+        //Primitives.cubeList=Primitives.generateCubeList();
     }
     
     private static void cleanup() {
         Display.destroy();
+        
+        //TODO kill worker threads
     }
     
     
@@ -272,6 +297,58 @@ public class MainGLRender extends Thread {
         fps++;
     }
     
-    
+    void convertAllBlocks() {
+        doConvert(world.generateOctree);
+    }
+    void doConvert(WorldOctree oc){
+        if(oc==null) return;
+        if(oc.block!=null){
+            GLChunklet n = new GLChunklet(oc.block);
+            oc.block = n;
+            taskPool.add(n);
+        }
+        if(!oc.hasSubtrees) return;
+        for(WorldOctree c: oc.subtrees){
+            doConvert(c);
+        }
+    }
+
+    private void bufferChunk(GLChunklet cl) {
+        cl.vboID = glGenBuffers();
+        cl.iboID = glGenBuffers();
+        cl.vaoID = glGenVertexArrays();
+        glBindVertexArray(cl.vaoID);
+        glBindBuffer(GL_ARRAY_BUFFER, cl.vboID);
+        glBufferData(GL_ARRAY_BUFFER, cl.vertexB, GL_STATIC_DRAW);
+        glBindBuffer(GL_INDEX_ARRAY,cl.iboID);
+        glBufferData(GL_INDEX_ARRAY,cl.indexB,GL_STATIC_DRAW);
+        glEnableVertexAttribArray(0);
+        glEnableVertexAttribArray(1);
+        glEnableVertexAttribArray(2);
+        //glVertexAttribPointer(0, 3, GL_FLOAT, false,4*8,4*0);
+        //glVertexAttribPointer(1, 1, GL_FLOAT, false,4*8,4*3);
+        //glVertexAttribPointer(2, 3, GL_FLOAT, false,4*8,4*4);
+        glVertexPointer(3, GL_FLOAT,4*8, 4*0);
+        glColorPointer(3,GL_FLOAT,4*8,4*4);
+        
+        glBindVertexArray(0);
+    }
+
+    private void renderOctree(WorldOctree oc) {
+        //TODO use renderLists here
+        if(oc==null) return;
+        if(oc.block!=null){
+            if(oc.block instanceof GLChunklet && oc.block.blocksInside>0){
+                //render this
+                GLChunklet g = (GLChunklet)oc.block;
+                glBindVertexArray(g.vaoID);
+                glDrawArrays(GL_TRIANGLES, 0, g.indCount);
+            }
+        }
+        if(!oc.hasSubtrees) return;
+        for(WorldOctree s:oc.subtrees){
+            renderOctree(s);
+        }
+    }
     
 }

@@ -31,14 +31,22 @@ public class Chunklet implements Serializable {
     public int posX, posY, posZ;
     
     /**
+     * the number of blocks inside this chunklet which are not air.
+     * if not determined, is -1.
+     */
+    public int blocksInside = -1;
+    
+    /**
      * 16x16x16 blocks in this chunklet.
      * access: blocks[x + y*csl + z*csl2] = blah.
      */
     public Block[] blocks = new Block[csl*csl*csl];
     
-    public Chunklet(int posX, int posY, int posZ){
+    public WorldOctree parent;
+    
+    public Chunklet(int posX, int posY, int posZ, WorldOctree parent){
         this.posX=posX; this.posY=posY; this.posZ=posZ;
-        
+        this.parent=parent;
     }
     
     public static int getBlockIndex(float x, float y,float z) {

@@ -65,14 +65,17 @@ abstract public class WorldGenerator {
     
     public Vec3d spawnPoint() {
         r.setSeed(seed ^ 0x4746353579aa2bL); //some random.org value
-        double maxXZ= (WorldOctree.getSidelength(WorldOctree.highestSubtreeLvl)) +1;
+        double maxXZ= (WorldOctree.getSidelength(WorldOctree.highestSubtreeLvl-1)) +1;
         
-        Vec3d sp=new Vec3d( r.nextDouble()*maxXZ, WorldOctree.getSidelength(WorldOctree.highestSubtreeLvl-1)+2 ,r.nextDouble()*maxXZ );
+        Vec3d sp=new Vec3d( r.nextDouble()*maxXZ, 0 ,r.nextDouble()*maxXZ );
         //TODO move as high as needed to spawn properly
         //and select another point if this takes too long
         
         //just for show, spawn a torch there.
         WorldOctree w= WorldOctree.getOctreeAt(sp, 0, world.generateOctree);
+        if(w.block==null){
+            w.block = new Chunklet((int)w.position.x, (int)w.position.y, (int)w.position.z, w);
+        }
         w.block.blocks[Chunklet.getBlockIndex(sp)] = StaticBlock.TORCH;
         System.out.println("spawnpoint: "+sp);
         System.out.println("spawnTree: "+w);

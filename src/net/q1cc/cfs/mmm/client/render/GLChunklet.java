@@ -7,8 +7,10 @@ package net.q1cc.cfs.mmm.client.render;
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
+import net.q1cc.cfs.mmm.client.Client;
 import net.q1cc.cfs.mmm.common.world.Block;
 import net.q1cc.cfs.mmm.common.world.Chunklet;
+import net.q1cc.cfs.mmm.common.world.WorldOctree;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.MemoryUtil;
 import org.lwjgl.Sys;
@@ -19,13 +21,14 @@ import org.lwjgl.Sys;
  * Not to be serialized.
  * @author cfstras
  */
-public class GLChunklet extends Chunklet {
+public class GLChunklet extends Chunklet implements WorkerTask {
     
     /**
      * The VBO ID for this chunklet, if it is in VRAM.
      * if not, this is -1.
      */
     public int vboID=-1;
+    public int iboID=-1;
     
     /**
      * The VAO ID for render setup of this chunklet.
@@ -37,6 +40,11 @@ public class GLChunklet extends Chunklet {
      * Resident client memory size of this chunklet, in bytes.
      */
     public int memorySize = 0;
+    
+    /**
+     * number of indices in index buffer
+     */
+    public int indCount;
     
     public FloatBuffer vertexB;
     public IntBuffer indexB;
@@ -50,11 +58,15 @@ public class GLChunklet extends Chunklet {
      * @param from 
      */
     public GLChunklet(Chunklet from) {
-        super(from.posX,from.posY,from.posZ);     
+        super(from.posX,from.posY,from.posZ, from.parent);
+        if(from.parent==null){
+            System.out.println("muh!");
+        }
     }
-    public GLChunklet(int x, int y, int z){
-        super(x,y,z);
-    }
+    
+    //public GLChunklet(int x, int y, int z, WorldOctree parent){
+    //    super(x,y,z, parent);
+    //}
     
     /**
      * Builds a chunks representation into video memory.
@@ -89,6 +101,14 @@ public class GLChunklet extends Chunklet {
                 indices += 6*2*3;
             }
         }
+        blocksInside = vertices / 8;
+        if(blocksInside==0) {
+            built=true;
+            System.out.println("height "+parent.height+" discarded. x="+posX+" y="+posY+" z="+posZ);
+            return;
+        } else {
+            System.out.println("height "+parent.height+" has "+blocksInside+" blocks. x="+posX+" y="+posY+" z="+posZ);
+        }
         
         FloatBuffer bufferV=null;
         if(targetV!=null) {
@@ -100,10 +120,10 @@ public class GLChunklet extends Chunklet {
             bufferI = targetI.asIntBuffer();
             sizeGivenI = bufferI.capacity();
         }
-        if(! (sizeGivenI >= indices * indexSize)){
+        if( (sizeGivenI < indices * indexSize)){
             bufferI = BufferUtils.createIntBuffer(indices);
         }
-        if(! (sizeGivenV >= vertices * vertexSize)){
+        if( (sizeGivenV < vertices * vertexSize)){
             bufferV = BufferUtils.createFloatBuffer(vertices);
         }
         //start filling
@@ -149,13 +169,31 @@ public class GLChunklet extends Chunklet {
                 }
             }
             //done.
+            indCount=indices;
             bufferV.flip();
             bufferI.flip();
             vertexB = bufferV;
             indexB = bufferI;
             built=true;
+            Client.instance.renderer.chunksToBuffer.add(this);
+            System.out.print(".");
         }
         
+    }
+
+    @Override
+    public boolean doWork() {
+        if(!built){
+            buildChunklet(null, null);
+        } else {
+            //System.out.println("nothing to do.");
+        }
+        return true;
+    }
+
+    @Override
+    public int getPriority() {
+        return WorkerTask.PRIORITY_NORM;
     }
     
     

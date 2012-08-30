@@ -8,6 +8,7 @@ import net.q1cc.cfs.mmm.common.world.WorldLoader;
 import net.q1cc.cfs.mmm.common.world.World;
 import java.io.File;
 import net.q1cc.cfs.mmm.client.render.MainGLRender;
+import net.q1cc.cfs.mmm.common.Info;
 import net.q1cc.cfs.mmm.common.Player;
 
 /**
@@ -25,7 +26,7 @@ public class Client {
      * @param args the command line arguments
      */
     public static void main(String[] args) {
-        //System.setProperty("java.library.path","lib\\native\\windows");
+        System.setProperty("org.lwjgl.path","lib\\native\\windows");
         //System.getProperties().list(System.out);
         
         //process commandline
@@ -42,7 +43,11 @@ public class Client {
         //System.out.println(world.generateOctree.toString(0)); //this takes some time.
         renderer=new MainGLRender(world);
         renderer.start();
-        
+        try {
+            renderer.join();
+        } catch (InterruptedException ex) {
+            ex.printStackTrace();
+        }
         System.out.println("exiting");
     }
     

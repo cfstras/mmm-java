@@ -30,13 +30,6 @@ public class World implements Serializable{
      * but outerSubtree(outerSubtree([...]outerSubtree.coords)[...]) == 1024,1024,1024
      */
     public WorldOctree generateOctree;
-    
-    /*
-     * keeps a copy of the world in a block array.
-     * the array bloxlevel keeps track of the levels.
-     * blox[x][y][z]
-     */
-    public Block[][][] blox;
    
     /**
      * This is the changed root Octree.
@@ -44,7 +37,7 @@ public class World implements Serializable{
      * where players or other things have made changes to the original world.
      * on an unchanged world, this has no children and no block.
      */
-    public WorldOctree changedOctree;
+    //public WorldOctree changedOctree;
     
     /**
      * This folder holds the world data.
@@ -68,18 +61,20 @@ public class World implements Serializable{
     
     public World(File folder, WorldOctree changedOctree, WorldGeneratorType type, long worldSeed){
         this.folder=folder;
-        this.changedOctree=changedOctree;
+        //this.changedOctree=changedOctree;
         this.worldType=type;
         this.worldSeed=worldSeed;
         
-        generateOctree=new WorldOctree(Vec3d.NULL);
+        double m = -WorldOctree.getSidelength(WorldOctree.highestSubtreeLvl)/2;
+        generateOctree=new WorldOctree(new Vec3d(m,m,m));
         
         this.worldGenerator=getGenerator();
         
         
         //blox=new Block[1024][1024][1024];
         //fill it with flat mountains.
-        worldGenerator.generate(generateOctree,null, 6); //just some sublevels for now, to be inaccurate.
+        //TODO convert this to workers
+        worldGenerator.generate(generateOctree,null, WorldOctree.highestSubtreeLvl); //just some sublevels for now, to be inaccurate.
         
         
         this.spawnPoint=worldGenerator.spawnPoint(); //generate first, because spawnPoint sets a torch
@@ -113,7 +108,7 @@ public class World implements Serializable{
 
     private void initChangedOctree() {
         WorldOctree wo= new WorldOctree(Vec3d.NULL);
-        changedOctree=wo;
+        //changedOctree=wo;
     }
     
 }
