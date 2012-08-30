@@ -33,9 +33,10 @@ public class Client {
         //init something else
         Info.info = new ClientInfo();
         instance=new Client();
+        instance.init();
     }
     
-    public Client(){
+    public void init(){
         //display menu
         //connect to server or load world
         System.out.println(Runtime.getRuntime().maxMemory());

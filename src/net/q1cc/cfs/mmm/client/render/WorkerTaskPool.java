@@ -29,6 +29,7 @@ public class WorkerTaskPool {
             workers[i]=new Worker(this);
             workers[i].setPriority((Thread.MIN_PRIORITY+Thread.MAX_PRIORITY)/2);
             workers[i].setDaemon(true);
+            workers[i].setName("Worker "+i);
             workers[i].start();
         }
     }

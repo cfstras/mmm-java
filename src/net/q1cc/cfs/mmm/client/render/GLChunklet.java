@@ -59,6 +59,7 @@ public class GLChunklet extends Chunklet implements WorkerTask {
      */
     public GLChunklet(Chunklet from) {
         super(from.posX,from.posY,from.posZ, from.parent);
+        this.blocks=from.blocks;
         if(from.parent==null){
             System.out.println("muh!");
         }
@@ -104,10 +105,10 @@ public class GLChunklet extends Chunklet implements WorkerTask {
         blocksInside = vertices / 8;
         if(blocksInside==0) {
             built=true;
-            System.out.println("height "+parent.height+" discarded. x="+posX+" y="+posY+" z="+posZ);
+            //System.out.println("height "+parent.height+" discarded. x="+posX+" y="+posY+" z="+posZ);
             return;
         } else {
-            System.out.println("height "+parent.height+" has "+blocksInside+" blocks. x="+posX+" y="+posY+" z="+posZ);
+            //System.out.println("height "+parent.height+" has "+blocksInside+" blocks. x="+posX+" y="+posY+" z="+posZ);
         }
         
         FloatBuffer bufferV=null;
@@ -176,7 +177,7 @@ public class GLChunklet extends Chunklet implements WorkerTask {
             indexB = bufferI;
             built=true;
             Client.instance.renderer.chunksToBuffer.add(this);
-            System.out.print(".");
+            //System.out.print(".");
         }
         
     }

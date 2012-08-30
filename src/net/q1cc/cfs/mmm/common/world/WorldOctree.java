@@ -73,7 +73,7 @@ public class WorldOctree implements Serializable{
      * let's set it to 6, that makes 1/4 mio. blocks.
      * note: that's only 64 sidelength...
      */
-    static final int highestSubtreeLvl =4;
+    static final int highestSubtreeLvl =3;
     
     /**
      * This shows if this subtree has already been generated.
