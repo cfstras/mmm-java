@@ -65,7 +65,7 @@ abstract public class WorldGenerator {
     
     public Vec3d spawnPoint() {
         r.setSeed(seed ^ 0x4746353579aa2bL); //some random.org value
-        double maxXZ= (WorldOctree.getSidelength(WorldOctree.highestSubtreeLvl-1)) +1;
+        double maxXZ= (WorldOctree.getSidelength(WorldOctree.highestSubtreeLvl-1));
         
         Vec3d sp=new Vec3d( r.nextDouble()*maxXZ, 0 ,r.nextDouble()*maxXZ );
         //TODO move as high as needed to spawn properly

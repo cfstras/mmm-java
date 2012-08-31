@@ -72,6 +72,7 @@ public class MainGLRender extends Thread {
                 keyboard();
                 
                 render();
+                checkGLError();
                 Display.update();
                 updateFPSandDelta();
                 Display.sync(60);
@@ -151,7 +152,7 @@ public class MainGLRender extends Thread {
             e.printStackTrace();
         }
     }
-
+    
     private boolean render() {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glLoadIdentity();
@@ -167,10 +168,11 @@ public class MainGLRender extends Thread {
         //TODO check if there is time
         //now to buffer some chunks
         if(!chunksToBuffer.isEmpty()){
-            for(int i=0;i<200;i++){ //TODO do as many as time allows us to
+            for(int i=0;i<50;i++){ //TODO do as many as time allows us to
                 if(!chunksToBuffer.isEmpty())
                     bufferChunk(chunksToBuffer.pop());
             }
+            chunksToBuffer.clear(); //debug
         }
         
         
@@ -320,18 +322,25 @@ public class MainGLRender extends Thread {
         glBindVertexArray(cl.vaoID);
         glBindBuffer(GL_ARRAY_BUFFER, cl.vboID);
         glBufferData(GL_ARRAY_BUFFER, cl.vertexB, GL_STATIC_DRAW);
-        glBindBuffer(GL_INDEX_ARRAY,cl.iboID);
-        glBufferData(GL_INDEX_ARRAY,cl.indexB,GL_STATIC_DRAW);
-        glEnableVertexAttribArray(0);
-        glEnableVertexAttribArray(1);
-        glEnableVertexAttribArray(2);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,cl.iboID);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER,cl.indexB,GL_STATIC_DRAW);
+        checkGLError();
+        glEnableClientState(GL_VERTEX_ARRAY);
+        glEnableClientState(GL_COLOR_ARRAY);
+        glEnableClientState(GL_INDEX_ARRAY);
+        checkGLError();
+        //glEnableVertexAttribArray(0);
+        //glEnableVertexAttribArray(1);
+        //glEnableVertexAttribArray(2);
         //glVertexAttribPointer(0, 3, GL_FLOAT, false,4*8,4*0);
         //glVertexAttribPointer(1, 1, GL_FLOAT, false,4*8,4*3);
         //glVertexAttribPointer(2, 3, GL_FLOAT, false,4*8,4*4);
         glVertexPointer(3, GL_FLOAT,4*8, 4*0);
         glColorPointer(3,GL_FLOAT,4*8,4*4);
-        
+        checkGLError();
         glBindVertexArray(0);
+        glBindBuffer(GL_ARRAY_BUFFER,0);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,0);
     }
 
     private void renderOctree(WorldOctree oc) {
@@ -340,14 +349,48 @@ public class MainGLRender extends Thread {
         if(oc.block!=null){
             if(oc.block instanceof GLChunklet && oc.block.blocksInside>0){
                 //render this
+                checkGLError();
                 GLChunklet g = (GLChunklet)oc.block;
-                glBindVertexArray(g.vaoID);
-                glDrawArrays(GL_TRIANGLES, 0, g.indCount);
+                //glBindVertexArray(g.vaoID);
+                checkGLError();
+                glBindBuffer(GL_ARRAY_BUFFER, g.vboID);
+                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g.iboID);
+                checkGLError();
+                //glEnableVertexAttribArray(0);
+                //glEnableVertexAttribArray(1);
+                //glEnableVertexAttribArray(2);
+                glEnableClientState(GL_VERTEX_ARRAY);
+                glEnableClientState(GL_COLOR_ARRAY);
+                glEnableClientState(GL_INDEX_ARRAY);
+                //glVertexAttribPointer(0, 3, GL_FLOAT, false,4*8,4*0);
+                //glVertexAttribPointer(1, 1, GL_FLOAT, false,4*8,4*3);
+                //glVertexAttribPointer(2, 3, GL_FLOAT, false,4*8,4*4);
+                glVertexPointer(3, GL_FLOAT, 4 * 8, 4 * 0);
+                glColorPointer(3, GL_FLOAT, 4 * 8, 4 * 4);
+                checkGLError();
+                glDrawElements(GL_TRIANGLES, g.indCount, GL_UNSIGNED_INT, 0);
+                checkGLError();
+                glBindBuffer(GL_ARRAY_BUFFER, 0);
+                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,0);
+                checkGLError();
             }
         }
         if(!oc.hasSubtrees) return;
         for(WorldOctree s:oc.subtrees){
             renderOctree(s);
+        }
+    }
+
+    private static int lastError=0;
+    public static void checkGLError() {
+        int err = glGetError();
+        if(err!=GL_NO_ERROR){
+            if(err!=lastError){
+                System.out.println(gluErrorString(err));
+                lastError=err;
+            } else {
+                System.out.print(".");
+            }
         }
     }
     
