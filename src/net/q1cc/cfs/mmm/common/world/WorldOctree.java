@@ -73,7 +73,7 @@ public class WorldOctree implements Serializable{
      * let's set it to 6, that makes 1/4 mio. blocks.
      * note: that's only 64 sidelength...
      */
-    static final int highestSubtreeLvl = 2;
+    static final int highestSubtreeLvl = 1;
     
     /**
      * This shows if this subtree has already been generated.
@@ -99,6 +99,10 @@ public class WorldOctree implements Serializable{
         this.position=position;
         this.parent=parent;
         //cube=new Cubed(position, subtreeLvl);
+        blocksCreated++;
+        if(blocksCreated%1000==0){
+                System.out.println("Tree nodes: "+blocksCreated);
+        }
     }
 
     /**
@@ -110,6 +114,14 @@ public class WorldOctree implements Serializable{
                 position);
     }
 
+    /**
+     * Finds a node below this one. If no node is present at the given location,
+     * a new one is created.
+     * @param x the x parameter of the subnode bitmask
+     * @param y the x parameter of the subnode bitmask
+     * @param z the x parameter of the subnode bitmask
+     * @return 
+     */
     synchronized WorldOctree getSubtree(boolean x,boolean y, boolean z) {
         WorldOctree subtree=null;
         int index=getIndex(x,y,z);
@@ -132,10 +144,6 @@ public class WorldOctree implements Serializable{
                     newpos.z+=slh;
                 }
             int tries=3;
-            blocksCreated++;
-            if(blocksCreated%1000==1){
-                System.out.println("Blocks:"+blocksCreated);
-            }
             while (tries>=0&&subtree==null){
                 tries--;
                 try {
@@ -144,7 +152,7 @@ public class WorldOctree implements Serializable{
                 } catch (OutOfMemoryError e) {
                     System.gc();
                     System.out.println("OOM error, trying to fix...");
-                    System.out.println("Blocks:"+blocksCreated);
+                    System.out.println("Tree nodes: "+blocksCreated);
                 }
             }
             if(!hasSubtrees){

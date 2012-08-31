@@ -106,7 +106,7 @@ public class Cubed {
         if(point.z<z-slh) return false;
         if(point.z>=z+slh) return false;
         
-        System.out.println(point+" intersects with cube mid x="+x+",y="+y+",z="+z+",radius="+slh);
+        //System.out.println(point+" intersects with cube mid x="+x+",y="+y+",z="+z+",radius="+slh);
         return true;
     }
     /**

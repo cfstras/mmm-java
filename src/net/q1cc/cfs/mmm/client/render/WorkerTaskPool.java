@@ -34,7 +34,7 @@ public class WorkerTaskPool {
         }
     }
     
-    public void add(WorkerTask task){
+    public synchronized void add(WorkerTask task){
         synchronized(lock){
             tasks.add(task);
         }
@@ -52,8 +52,8 @@ public class WorkerTaskPool {
         }
     }
     
-    public WorkerTask pop(){
-        WorkerTask ret=null;
+    public synchronized WorkerTask pop(){
+        WorkerTask ret;
         synchronized(lock){
             if(tasks.size()<1) {
                 workersIdle=true;

@@ -25,7 +25,7 @@ public class EarthGenerator extends WorldGenerator{
         if(levels>0){
             for(int i=0;i<8;i++){
                 generate(oc.getSubtree(i),blox,levels-1);
-                if(levels>=5)
+                if(levels>=WorldOctree.highestSubtreeLvl)
                     System.out.println("gen: l="+levels+" i="+i);
             }
         } else {

@@ -14,7 +14,6 @@ public abstract interface WorkerTask {
     public static final int PRIORITY_NORM = 2;
     public static final int PRIORITY_MAX = 3;
     
-    public boolean done=false;
     public int getPriority();
     
     public boolean doWork();

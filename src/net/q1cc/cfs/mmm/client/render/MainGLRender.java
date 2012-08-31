@@ -54,7 +54,12 @@ public class MainGLRender extends Thread {
     private DisplayMode displayMode;
     private TextureLoader texL;
     
-    private int vboID;
+    /* stats */
+    
+    /**
+     * the number of chunklets successfully rendered in the current frame.
+     */
+    private int chunkletsRendered;
     
     public MainGLRender(World world){
         this.world=world;
@@ -162,7 +167,9 @@ public class MainGLRender extends Thread {
         //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         
         //TODO all the render methods here
+        chunkletsRendered=0;
         renderOctree(world.generateOctree);
+        //System.out.println("chunklets: "+chunkletsRendered);
         //TODO HUD here
         
         //TODO check if there is time
@@ -172,7 +179,7 @@ public class MainGLRender extends Thread {
                 if(!chunksToBuffer.isEmpty())
                     bufferChunk(chunksToBuffer.pop());
             }
-            chunksToBuffer.clear(); //debug
+            //chunksToBuffer.clear(); //debug
         }
         
         
@@ -373,6 +380,7 @@ public class MainGLRender extends Thread {
                 glBindBuffer(GL_ARRAY_BUFFER, 0);
                 glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,0);
                 checkGLError();
+                chunkletsRendered++;
             }
         }
         if(!oc.hasSubtrees) return;
@@ -382,14 +390,19 @@ public class MainGLRender extends Thread {
     }
 
     private static int lastError=0;
+    private static int lastErrorCount=0;
     public static void checkGLError() {
         int err = glGetError();
         if(err!=GL_NO_ERROR){
             if(err!=lastError){
                 System.out.println(gluErrorString(err));
                 lastError=err;
+                lastErrorCount=1;
             } else {
-                System.out.print(".");
+                lastErrorCount++;
+                if(lastErrorCount%1000==0){
+                    System.out.println("repeated "+lastErrorCount+" times.");
+                }
             }
         }
     }

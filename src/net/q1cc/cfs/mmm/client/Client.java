@@ -7,6 +7,7 @@ package net.q1cc.cfs.mmm.client;
 import net.q1cc.cfs.mmm.common.world.WorldLoader;
 import net.q1cc.cfs.mmm.common.world.World;
 import java.io.File;
+import javax.swing.JOptionPane;
 import net.q1cc.cfs.mmm.client.render.MainGLRender;
 import net.q1cc.cfs.mmm.common.Info;
 import net.q1cc.cfs.mmm.common.Player;
@@ -18,6 +19,27 @@ import net.q1cc.cfs.mmm.common.Player;
 public class Client {
     
     public static Client instance;
+
+    private static void setLibPath() {
+        String osname = System.getProperty("os.name");
+        String os="";
+        if(osname.contains("Windows")){
+            os="windows";
+        } else if(osname.contains("Linux")){
+            os="linux";
+        } else if(osname.contains("Mac OS X") || osname.contains("OS X")){
+            os="macosx";
+        } else if(osname.contains("Solaris")){
+            os="solaris";
+        } else {
+            JOptionPane.showMessageDialog(null,"Your System, "+osname
+                    +", seems not to be supported by mmm. Sorry.",
+                    "OS not supported",JOptionPane.ERROR_MESSAGE,null);
+        }
+        
+        System.setProperty("org.lwjgl.librarypath",new File("").getAbsolutePath()+"/lib/native/"+os);
+    }
+    
     public MainGLRender renderer;
     
     public World world;
@@ -26,8 +48,10 @@ public class Client {
      * @param args the command line arguments
      */
     public static void main(String[] args) {
-        System.setProperty("org.lwjgl.path","lib\\native\\windows");
-        //System.getProperties().list(System.out);
+        
+        setLibPath();
+        //some switches
+        System.setProperty("org.lwjgl.util.Debug", "true");
         
         //process commandline
         //init something else

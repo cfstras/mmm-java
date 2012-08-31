@@ -4,6 +4,7 @@
  */
 package net.q1cc.cfs.mmm.client.render;
 
+import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
@@ -85,7 +86,7 @@ public class GLChunklet extends Chunklet implements WorkerTask {
      * @param targetV the target vertex buffer, if one is avaliable.
      * @param targetI same for index buffer
      */
-    public void buildChunklet(ByteBuffer targetV, ByteBuffer targetI) {
+    public synchronized void buildChunklet(ByteBuffer targetV, ByteBuffer targetI) {
         int sizeGivenI=0, sizeGivenV=0;
         //build chunk
         //TODO compress surfaces
@@ -122,11 +123,13 @@ public class GLChunklet extends Chunklet implements WorkerTask {
             sizeGivenI = bufferI.capacity();
         }
         if( (sizeGivenI < indices * indexSize)){
-            bufferI = BufferUtils.createIntBuffer(indices);
+            bufferI = BufferUtils.createIntBuffer(indices * indexSize);
         }
         if( (sizeGivenV < vertices * vertexSize)){
-            bufferV = BufferUtils.createFloatBuffer(vertices);
+            bufferV = BufferUtils.createFloatBuffer(vertices * vertexSize);
         }
+        bufferI.rewind();
+        bufferV.rewind();
         //start filling
         int vertexPos=0;
         Block b;
@@ -134,62 +137,72 @@ public class GLChunklet extends Chunklet implements WorkerTask {
             for(int iy=0; iy<Chunklet.csl; iy++) {
                 for(int iz=0; iz<Chunklet.csl; iz++) {
                     b = blocks[ix + iy*Chunklet.csl + iz*Chunklet.csl2];
-                    if(b==null) continue;
-                    // the indices
-                    //front
-                    bufferI.put(vertexPos+0).put(vertexPos+4).put(vertexPos+2);
-                    bufferI.put(vertexPos+4).put(vertexPos+6).put(vertexPos+2);
-                    //right
-                    bufferI.put(vertexPos+4).put(vertexPos+5).put(vertexPos+6);
-                    bufferI.put(vertexPos+6).put(vertexPos+5).put(vertexPos+7);
-                    //left
-                    bufferI.put(vertexPos+2).put(vertexPos+1).put(vertexPos+0);
-                    bufferI.put(vertexPos+2).put(vertexPos+3).put(vertexPos+1);
-                    //top
-                    bufferI.put(vertexPos+2).put(vertexPos+6).put(vertexPos+3);
-                    bufferI.put(vertexPos+3).put(vertexPos+6).put(vertexPos+7);
-                    //back
-                    bufferI.put(vertexPos+5).put(vertexPos+1).put(vertexPos+7);
-                    bufferI.put(vertexPos+7).put(vertexPos+1).put(vertexPos+3);
-                    //bottom
-                    bufferI.put(vertexPos+1).put(vertexPos+4).put(vertexPos+0);
-                    bufferI.put(vertexPos+1).put(vertexPos+5).put(vertexPos+4);
-                    
-                    for(int iix=0;iix<2;iix++){ // do the vertices
-                        for(int iiy=0;iiy<2;iiy++){
-                            for(int iiz=0;iiz<2;iiz++){
-                                bufferV.put(iix+ix+posX).put(iiy+iy+posY).put(iiz+iz+posZ);
-                                bufferV.put(b.lightLevel);
-                                bufferV.put(b.color.getRed()/255.0f).put(b.color.getGreen()/255.0f).put(b.color.getBlue()/255.0f);
-                                bufferV.put(1337);
-                                vertexPos++;
+                    if(b!=null){
+                        // the indices
+                        //front
+                        bufferI.put(vertexPos+0).put(vertexPos+4).put(vertexPos+2);
+                        bufferI.put(vertexPos+4).put(vertexPos+6).put(vertexPos+2);
+                        //right
+                        bufferI.put(vertexPos+4).put(vertexPos+5).put(vertexPos+6);
+                        bufferI.put(vertexPos+6).put(vertexPos+5).put(vertexPos+7);
+                        //left
+                        bufferI.put(vertexPos+2).put(vertexPos+1).put(vertexPos+0);
+                        bufferI.put(vertexPos+2).put(vertexPos+3).put(vertexPos+1);
+                        //top
+                        bufferI.put(vertexPos+2).put(vertexPos+6).put(vertexPos+3);
+                        bufferI.put(vertexPos+3).put(vertexPos+6).put(vertexPos+7);
+                        //back
+                        bufferI.put(vertexPos+5).put(vertexPos+1).put(vertexPos+7);
+                        bufferI.put(vertexPos+7).put(vertexPos+1).put(vertexPos+3);
+                        //bottom
+                        bufferI.put(vertexPos+1).put(vertexPos+4).put(vertexPos+0);
+                        bufferI.put(vertexPos+1).put(vertexPos+5).put(vertexPos+4);
+
+                        for(int iix=0;iix<2;iix++){ // do the vertices
+                            for(int iiy=0;iiy<2;iiy++){
+                                for(int iiz=0;iiz<2;iiz++){
+                                    bufferV.put(iix+ix+posX).put(iiy+iy+posY).put(iiz+iz+posZ);
+                                    bufferV.put(b.lightLevel);
+                                    bufferV.put(b.color.getRed()/255.0f).put(b.color.getGreen()/255.0f).put(b.color.getBlue()/255.0f);
+                                    bufferV.put(1337);//padding
+                                    if(vertexPos > Integer.MAX_VALUE/2){
+                                        System.out.println("Error: too many vertices.");
+                                    }
+                                    vertexPos++;
+                                }
                             }
                         }
-                    }
+                        
+                    } //if b!=null
                     
-                }
-            }
-            //done.
-            indCount=indices;
-            bufferV.flip();
-            bufferI.flip();
-            vertexB = bufferV;
-            indexB = bufferI;
-            built=true;
-            Client.instance.renderer.chunksToBuffer.add(this);
-            //System.out.print(".");
-        }
-        
+                }// three
+            }//     outer
+        }//         forloops
+        System.out.println("Chunklet " + blocksInside + " blocks, "
+            + vertexPos + "=" + bufferV.position() / vertexSize + "=" + vertices + " verts, "
+            + indices + "=" + bufferI.position() + " inds");
+        //done.
+        indCount = indices;
+        bufferV.flip();
+        bufferI.flip();
+        vertexB = bufferV;
+        indexB = bufferI;
+        built = true;
+        Client.instance.renderer.chunksToBuffer.add(this);
+        //System.out.print(".");
+
     }
 
     @Override
-    public boolean doWork() {
+    public synchronized boolean doWork() {
         if(!built){
             buildChunklet(null, null);
+            
+            return true;
         } else {
-            //System.out.println("nothing to do.");
+            System.out.println("I was called without reason, master.");
+            return false;
         }
-        return true;
     }
 
     @Override
