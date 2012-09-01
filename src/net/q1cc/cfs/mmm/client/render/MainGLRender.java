@@ -2,8 +2,13 @@
 package net.q1cc.cfs.mmm.client.render;
 
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
+import java.util.LinkedList;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import net.q1cc.cfs.mmm.client.Client;
 import net.q1cc.cfs.mmm.common.math.Quaternionf;
@@ -29,12 +34,14 @@ import org.lwjgl.input.Keyboard;
 import org.lwjgl.input.Mouse;
 import org.lwjgl.opengl.ARBVertexBufferObject;
 import org.lwjgl.opengl.GLContext;
+import org.lwjgl.util.vector.Matrix4f;
+import org.lwjgl.util.vector.Vector3f;
 
 /**
  * @author claus
  */
 public class MainGLRender extends Thread {
-    
+        
     WorkerTaskPool taskPool = new WorkerTaskPool();
     
     ConcurrentLinkedDeque<GLChunklet> chunksToBuffer = new ConcurrentLinkedDeque<GLChunklet>();
@@ -50,6 +57,16 @@ public class MainGLRender extends Thread {
     
     World world;
     float mouseSpeed=1.0f;
+    
+    int basicShader;
+    int posAttribLoc;
+    int lightAttribLoc;
+    int texAttribLoc;
+    
+    Matrix4f projMat;
+    Matrix4f posChunkMat;
+    FloatBuffer projMatB;
+    FloatBuffer posChunkMatB;
     
     private DisplayMode displayMode;
     private TextureLoader texL;
@@ -91,6 +108,67 @@ public class MainGLRender extends Thread {
             System.exit(0);
         }
     }
+    
+    private void loadShaders() {
+        String[] fragSource = null;
+        String[] vertSource = null;
+        try {
+            // load the basic shader
+            InputStream fragFile = MainGLRender.class.getResourceAsStream("/net/q1cc/cfs/mmm/client/render/shaders/basic.fsh");
+            if(fragFile==null){
+                System.out.println("Error: could not find fragment shader");
+            } else {
+                fragSource = readString(fragFile);
+            }
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
+        try {
+            // load the basic shader
+            InputStream vertFile = MainGLRender.class.getResourceAsStream("/net/q1cc/cfs/mmm/client/render/shaders/basic.vsh");
+            if(vertFile==null){
+                System.out.println("Error: could not find vertex shader");
+            } else {
+                vertSource = readString(vertFile);
+            }
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
+        
+        basicShader = glCreateProgram();
+        int vertShader = glCreateShader(GL_VERTEX_SHADER);
+        int fragShader = glCreateShader(GL_FRAGMENT_SHADER);
+        
+        glShaderSource(vertShader, vertSource);
+        glCompileShader(vertShader);
+        System.out.println("Vertex Shader: "+glGetShaderInfoLog(vertShader, 512));
+        checkGLError();
+        glShaderSource(fragShader, fragSource);
+        glCompileShader(fragShader);
+        System.out.println("Fragment Shader: "+glGetShaderInfoLog(fragShader, 512));
+        checkGLError();
+        
+        glAttachShader(basicShader, vertShader);
+        glAttachShader(basicShader, fragShader);
+        glLinkProgram(basicShader);
+        System.out.println("ShaderLink : "+glGetProgramInfoLog(basicShader, 512));
+        checkGLError();
+        
+        posAttribLoc = glGetAttribLocation(basicShader, "inPos");
+        lightAttribLoc = glGetAttribLocation(basicShader, "inLight");
+        texAttribLoc = glGetAttribLocation(basicShader, "inTex");
+    }
+    private static String[] readString(InputStream in) throws IOException {
+        BufferedReader i = new BufferedReader(new InputStreamReader(in));
+        LinkedList<String> l = new LinkedList<String>();
+        String s;
+        while((s = i.readLine()) != null){
+            l.add(s+"\n");
+        }
+        i.close();
+        return l.toArray(new String[l.size()]);
+    }
+    
     private void keyboard() {
         if(Keyboard.isKeyDown(Keyboard.KEY_ESCAPE)) {       // Exit if Escape is pressed
             Mouse.setGrabbed(false);
@@ -179,6 +257,9 @@ public class MainGLRender extends Thread {
         
         // wireframe mode
         //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        glUseProgram(basicShader);
+        glUniformMatrix4(glGetUniformLocation(basicShader, "projMat"),false,projMatB);
+        glUniformMatrix4(glGetUniformLocation(basicShader, "posChunkMat"),false,posChunkMatB);
         
         //TODO all the render methods here
         chunkletsRendered=0;
@@ -189,23 +270,30 @@ public class MainGLRender extends Thread {
         //TODO check if there is time
         //now to buffer some chunks
         if(!chunksToBuffer.isEmpty()){
-            for(int i=0;i<2;i++){ //TODO do as many as time allows us to
+            for(int i=0;i<1;i++){ //TODO do as many as time allows us to
                 if(!chunksToBuffer.isEmpty())
                     bufferChunk(chunksToBuffer.pop());
             }
-            //chunksToBuffer.clear(); //debug
         }
         
         
         return true;
     }
     
-    
     void setCamera() {
-        glRotatef(player.rotation.y,1.0f,0.0f,0.0f);  //rotate our camera on teh x-axis (up down)
-        glRotatef(player.rotation.x,0.0f,1.0f,0.0f);  //rotate our camera on the y-axis (left right)
-        glTranslated(-player.position.x,-player.position.y,-player.position.z); //translate the screento the position of our camera
+        //glRotatef(player.rotation.y,1.0f,0.0f,0.0f);  //rotate our camera on teh x-axis (up down)
+        //glRotatef(player.rotation.x,0.0f,1.0f,0.0f);  //rotate our camera on the y-axis (left right)
+        //glTranslated(-player.position.x,-player.position.y,-player.position.z); //translate the screento the position of our camera
+        posChunkMat.setIdentity();
+        posChunkMat.rotate((float)Math.toRadians(player.rotation.y),
+                new Vector3f(1.0f,0.0f,0.0f));
+        posChunkMat.rotate((float)Math.toRadians(player.rotation.x),
+                new Vector3f(0.0f,1.0f,0.0f));
+        posChunkMat.translate(new Vector3f(-player.position.x,-player.position.y,-player.position.z));
+        posChunkMat.store(posChunkMatB);
+        posChunkMatB.flip();
     }
+    
     private void createWindow() {
         try {
             Display.setFullscreen(fullscreen);
@@ -222,7 +310,12 @@ public class MainGLRender extends Thread {
             Display.setTitle(windowTitle);
             Display.setVSyncEnabled(true);
             Display.setResizable(true);
-            Display.create();
+            //ContextAttribs attrib = new ContextAttribs(3,2);//.withProfileCore(true);
+            //attrib = attrib.withForwardCompatible(true);
+            //attrib = attrib.withProfileCompatibility(true);
+            //attrib = attrib.withDebug(true);
+            PixelFormat pf = new PixelFormat(8,16,0,1);
+            Display.create(pf);
             
         } catch (LWJGLException ex) {
             ex.printStackTrace();
@@ -253,17 +346,21 @@ public class MainGLRender extends Thread {
     }
 
     private void initGL() {
-        glEnable(GL_TEXTURE_2D); // Enable Texture Mapping
-        glShadeModel(GL_SMOOTH); // Enable Smooth Shading
+        //glEnable(GL_TEXTURE_2D); // Enable Texture Mapping
+        //glShadeModel(GL_SMOOTH); // Enable Smooth Shading
         glClearColor(0.2f, 0.3f, 0.7f, 0.0f); // Black Background
         glClearDepth(1.0); // Depth Buffer Setup
         glEnable(GL_DEPTH_TEST); // Enables Depth Testing
         glDepthFunc(GL_LEQUAL); // The Type Of Depth Testing To Do
         
+        //glEnable(GL_CULL_FACE);
+        //glFrontFace(GL_CCW);
+        
+        loadShaders();
         setupProjection();
 
         // Really Nice Perspective Calculations
-        glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
+        //glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
     }
     
     private static void cleanup() {
@@ -300,7 +397,8 @@ public class MainGLRender extends Thread {
         lastFrame = time;
         
         if (time - lastFPS > 1000) {
-            Display.setTitle(windowTitle+ " FPS: " + fps +" deltaT: "+deltaTime+" rot: "+player.rotation);
+            Display.setTitle(windowTitle+ " FPS: " + fps +" deltaT: "+deltaTime+
+                    " rot: "+player.rotation+ " c: "+chunkletsRendered);
             fps = 0; //reset the FPS counter
             lastFPS += 1000; //add one second
         }
@@ -325,63 +423,60 @@ public class MainGLRender extends Thread {
     }
 
     private void bufferChunk(GLChunklet cl) {
-        cl.vboID = glGenBuffers();
-        cl.iboID = glGenBuffers();
-        cl.vaoID = glGenVertexArrays();
-        glBindVertexArray(cl.vaoID);
-        glBindBuffer(GL_ARRAY_BUFFER, cl.vboID);
+        int vboID = glGenBuffers();
+        int iboID = glGenBuffers();
+        int vaoID = glGenVertexArrays();
+        glBindVertexArray(vaoID);
+        glBindBuffer(GL_ARRAY_BUFFER, vboID);
         glBufferData(GL_ARRAY_BUFFER, cl.vertexB, GL_STATIC_DRAW);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,cl.iboID);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,iboID);
         glBufferData(GL_ELEMENT_ARRAY_BUFFER,cl.indexB,GL_STATIC_DRAW);
         checkGLError();
-        glEnableClientState(GL_VERTEX_ARRAY);
-        glEnableClientState(GL_COLOR_ARRAY);
-        glEnableClientState(GL_INDEX_ARRAY);
-        checkGLError();
-        //glEnableVertexAttribArray(0);
-        //glEnableVertexAttribArray(1);
-        //glEnableVertexAttribArray(2);
-        //glVertexAttribPointer(0, 3, GL_FLOAT, false,4*8,4*0);
-        //glVertexAttribPointer(1, 1, GL_FLOAT, false,4*8,4*3);
-        //glVertexAttribPointer(2, 3, GL_FLOAT, false,4*8,4*4);
-        glVertexPointer(3, GL_FLOAT,4*8, 4*0);
-        glColorPointer(3,GL_FLOAT,4*8,4*4);
+        //glEnableClientState(GL_VERTEX_ARRAY);
+        //glEnableClientState(GL_COLOR_ARRAY);
+        //glEnableClientState(GL_INDEX_ARRAY);
+        //checkGLError();
+        glEnableVertexAttribArray(0);
+        glEnableVertexAttribArray(1);
+        glEnableVertexAttribArray(2);
+        glVertexAttribPointer(0, 3, GL_FLOAT, false,4*8,4*0);
+        glVertexAttribPointer(1, 1, GL_FLOAT, false,4*8,4*3);
+        glVertexAttribPointer(2, 3, GL_FLOAT, false,4*8,4*4);
+        //glVertexPointer(3, GL_FLOAT,4*8, 4*0);
+        //glColorPointer(3,GL_FLOAT,4*8,4*4);
         checkGLError();
         glBindVertexArray(0);
-        glBindBuffer(GL_ARRAY_BUFFER,0);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,0);
+        cl.vboID = vboID;
+        cl.vaoID = vaoID;
+        cl.iboID = iboID;
+        //glBindBuffer(GL_ARRAY_BUFFER,0);
+        //glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,0);
     }
 
     private void renderOctree(WorldOctree oc) {
-        //TODO use renderLists here
         if(oc==null) return;
-        if(oc.block!=null){
-            if(oc.block instanceof GLChunklet && oc.block.blocksInside>0){
+        if(oc.block!=null && oc.block instanceof GLChunklet){
+            GLChunklet g = (GLChunklet)oc.block;
+            if(g.vaoID!=-1 && g.blocksInside>0){
                 //render this
-                checkGLError();
-                GLChunklet g = (GLChunklet)oc.block;
-                //glBindVertexArray(g.vaoID);
-                checkGLError();
+                glBindVertexArray(g.vaoID);
                 glBindBuffer(GL_ARRAY_BUFFER, g.vboID);
                 glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g.iboID);
-                checkGLError();
-                //glEnableVertexAttribArray(0);
-                //glEnableVertexAttribArray(1);
-                //glEnableVertexAttribArray(2);
-                glEnableClientState(GL_VERTEX_ARRAY);
-                glEnableClientState(GL_COLOR_ARRAY);
-                glEnableClientState(GL_INDEX_ARRAY);
-                //glVertexAttribPointer(0, 3, GL_FLOAT, false,4*8,4*0);
-                //glVertexAttribPointer(1, 1, GL_FLOAT, false,4*8,4*3);
-                //glVertexAttribPointer(2, 3, GL_FLOAT, false,4*8,4*4);
-                glVertexPointer(3, GL_FLOAT, 4 * 8, 4 * 0);
-                glColorPointer(3, GL_FLOAT, 4 * 8, 4 * 4);
-                checkGLError();
+                glEnableVertexAttribArray(posAttribLoc);
+                glEnableVertexAttribArray(lightAttribLoc);
+                glEnableVertexAttribArray(texAttribLoc);
+                //glEnableClientState(GL_VERTEX_ARRAY);
+                //glEnableClientState(GL_COLOR_ARRAY);
+                //glEnableClientState(GL_INDEX_ARRAY);
+                glVertexAttribPointer(posAttribLoc, 3, GL_FLOAT, false,4*8,4*0);
+                glVertexAttribPointer(lightAttribLoc, 1, GL_FLOAT, false,4*8,4*3);
+                glVertexAttribPointer(texAttribLoc, 3, GL_FLOAT, false,4*8,4*4);
+                //glVertexPointer(3, GL_FLOAT, 4 * 8, 4 * 0);
+                //glColorPointer(3, GL_FLOAT, 4 * 8, 4 * 4);
                 glDrawElements(GL_TRIANGLES, g.indCount, GL_UNSIGNED_INT, 0);
-                checkGLError();
-                glBindBuffer(GL_ARRAY_BUFFER, 0);
-                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,0);
-                checkGLError();
+                glBindVertexArray(0);
+                //glBindBuffer(GL_ARRAY_BUFFER, 0);
+                //glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,0);
                 chunkletsRendered++;
             }
         }
@@ -411,18 +506,50 @@ public class MainGLRender extends Thread {
 
     private void setupProjection() {
         displayMode = Display.getDisplayMode();
-        glMatrixMode(GL_PROJECTION); // Select The Projection Matrix
-        glLoadIdentity(); // Reset The Projection Matrix
-        
-        glEnable(GL_CULL_FACE);
-        glFrontFace(GL_CCW);
+        //glMatrixMode(GL_PROJECTION); // Select The Projection Matrix
+        //glLoadIdentity(); // Reset The Projection Matrix
         // Calculate The Aspect Ratio Of The Window
-        gluPerspective(
-          80.0f,
-          (float) displayMode.getWidth() / (float) displayMode.getHeight(),
-          0.5f,
-          1024.0f);
-        glMatrixMode(GL_MODELVIEW); // Select The Modelview Matrix
+        //gluPerspective(
+        //  80.0f,
+        //  (float) displayMode.getWidth() / (float) displayMode.getHeight(),
+        //  0.5f,
+        //  1024.0f);
+        //glMatrixMode(GL_MODELVIEW); // Select The Modelview Matrix
+        projMat = getProjection(80,
+                (float) displayMode.getWidth() / (float) displayMode.getHeight(),
+                0.5f, 1000.0f);
+        posChunkMat = new Matrix4f();
+        projMatB = BufferUtils.createFloatBuffer(16);
+        projMat.store(projMatB);
+        projMatB.flip();
+        posChunkMatB = BufferUtils.createFloatBuffer(16);
+    }
+    
+    public static Matrix4f getProjection(float fov, float aspect, float zNear, float zFar) {
+        float sine, cotangent, deltaZ;
+        float radians = fov / 2 * (float) Math.PI / 180;
+
+        deltaZ = zFar - zNear;
+        sine = (float) Math.sin(radians);
+
+        if ((deltaZ == 0) || (sine == 0) || (aspect == 0)) {
+            System.out.println("Error: incorrect parameters for projection");
+            return new Matrix4f();
+        }
+        
+        cotangent = (float) Math.cos(radians) / sine;
+        FloatBuffer matrix = BufferUtils.createFloatBuffer(16);
+        Matrix4f id = new Matrix4f();
+        id.store(matrix);
+        matrix.put(0 * 4 + 0, cotangent / aspect);
+        matrix.put(1 * 4 + 1, cotangent);
+        matrix.put(2 * 4 + 2, -(zFar + zNear) / deltaZ);
+        matrix.put(2 * 4 + 3, -1);
+        matrix.put(3 * 4 + 2, -2 * zNear * zFar / deltaZ);
+        matrix.put(3 * 4 + 3, 0);
+        matrix.flip();
+        id.load(matrix);
+        return id;
     }
     
 }

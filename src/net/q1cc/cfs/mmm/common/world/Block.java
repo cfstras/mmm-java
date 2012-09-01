@@ -21,10 +21,6 @@ public class Block implements Cloneable, Serializable{
      * normal Sunlight is 1.0 bright.
      */
     public float brightness;
-    public boolean isSizeLimited;
-    public int minOctreeLvl;
-    public int maxOctreeLvl;
-    public String texture_filename;
     public Color color;
     public float lightLevel;
     
@@ -39,10 +35,6 @@ public class Block implements Cloneable, Serializable{
     Color color,boolean isOpaque){
         this.isSolid=isSolid;
         this.brightness=brightness;
-        this.isSizeLimited=isSizeLimited;
-        this.minOctreeLvl=minOctreeLvl;
-        this.maxOctreeLvl=maxOctreeLvl;
-        this.texture_filename=texture_filename;
         this.color=color;
         this.isOpaque=isOpaque;
     }
@@ -61,6 +53,6 @@ public class Block implements Cloneable, Serializable{
     
     @Override
     public String toString() {
-        return "B,"+ (isSolid?"solid,":"")+"lumen="+brightness+",light="+lightLevel+",c="+color.toString();
+        return "B,"+ (isSolid?"solid,":"")+"emits="+brightness+",light="+lightLevel+",c="+color.toString();
     }
 }

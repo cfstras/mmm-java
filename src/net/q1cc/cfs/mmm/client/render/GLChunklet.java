@@ -178,9 +178,9 @@ public class GLChunklet extends Chunklet implements WorkerTask {
                 }// three
             }//     outer
         }//         forloops
-        System.out.println("Chunklet " + blocksInside + " blocks, "
-            + vertexPos + "=" + bufferV.position() / vertexSize + "=" + vertices + " verts, "
-            + indices + "=" + bufferI.position() + " inds");
+        //System.out.println("Chunklet " + blocksInside + " blocks, "
+        //    + vertexPos + "=" + bufferV.position() / vertexSize + "=" + vertices + " verts, "
+        //    + indices + "=" + bufferI.position() + " inds");
         //done.
         indCount = indices;
         bufferV.flip();
