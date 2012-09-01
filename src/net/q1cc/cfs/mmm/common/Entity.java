@@ -7,6 +7,7 @@ package net.q1cc.cfs.mmm.common;
 import net.q1cc.cfs.mmm.common.math.Quaternionf;
 import net.q1cc.cfs.mmm.common.math.Vec3d;
 import net.q1cc.cfs.mmm.common.math.Vec3f;
+import org.lwjgl.util.vector.Vector3f;
 
 /**
  * Describes a Generic Entity.
@@ -27,8 +28,8 @@ abstract public class Entity {
      * upwards (+rotation)
      */
     Vec3f colliderSize;
-    public Vec3f rotationNormal;
-    public Quaternionf rotation;
+    //public Vec3f rotationNormal;
+    public Vec3f rotation;
     EntityType type;
     String name;
     
@@ -37,8 +38,8 @@ abstract public class Entity {
     
     public Entity() {
         position = new Vec3f(0f,0f,0f);
-        rotationNormal=new Vec3f(1f, 0f, 0f);
-        rotation = new Quaternionf(0f,0f,0f,1f);
+        //rotationNormal=new Vec3f(1f, 0f, 0f);
+        rotation = new Vec3f(0f,0f,0f);
         type=EntityType.NOTCONTROLLED;
         
     }
@@ -64,7 +65,8 @@ abstract public class Entity {
      * @return 
      */
     public boolean move(Vec3f xyz) {
-        return translate(xyz.add(rotationNormal));
+        //TODO rotation matrix
+        return translate(xyz);
     }
             
    public enum EntityType {

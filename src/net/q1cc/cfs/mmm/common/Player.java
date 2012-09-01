@@ -7,6 +7,7 @@ package net.q1cc.cfs.mmm.common;
 import net.q1cc.cfs.mmm.client.Client;
 import net.q1cc.cfs.mmm.common.math.Quaternionf;
 import net.q1cc.cfs.mmm.common.math.Vec3f;
+import org.lwjgl.util.vector.*;
 
 /**
  *
@@ -28,47 +29,26 @@ public class Player extends Entity{
     }
     
     public boolean move(boolean forward,boolean left, boolean right, boolean backwards,boolean run){
-        //TODO this rotation sucks.
-        if(left&&right){
-            left=false;right=false;
-        }
-        if(forward&&backwards){
-            forward=false;
-            backwards=false;
-        }
-        if(!forward&&!backwards&&!left&&!right){
-            return true;
-        }
-        float x=0,y=0,z=0;
-        if(forward) {
-            z=-1;
-        } else if(backwards){
-            z=1;
-        }
-        if(left){
-            if(forward){
-                x=z=-0.707107f; //sqrt(0.5)
-            } else if (backwards) {
-                x-= z=0.707107f;
-            } else {
-                x=-1f;
-            }
-        } else if(right) {
-            if(forward){
-                x-=z=-0.707107f; //sqrt(0.5)
-            } else if (backwards) {
-                x= z=0.707107f;
-            } else {
-                x=1f;
-            }
-        }
+        Vec3f off = new Vec3f(0,0,0);
+        if(forward)     off.z -= 1;
+        if(backwards)   off.z += 1;
+        if(left)        off.x -= 1;
+        if(right)       off.x += 1;
         
-        Vec3f offset=new Vec3f(x,y,z);
-        offset=Quaternionf.rotate(offset, -rotation.x, false, true, false);
+        Matrix4f rot = new Matrix4f();
+        rot.rotate((float)Math.toRadians(-rotation.x), new Vector3f(0,1,0));
         
-        offset.mult((run?runningSpeed:walkingSpeed)*Client.instance.renderer.deltaTime);
+        //Vector3f move = new Vector3f((float)Math.cos(-rotation.x)*offset.x+(float)Math.sin(-rotation.x)*offset.y,0,
+        //        -(float)Math.sin(-rotation.x)*offset.x+(float)Math.cos(-rotation.x)*offset.y);        
+        //rot.transpose();
+        Vec3f move = new Vec3f(
+                rot.m00*off.x+rot.m10*off.y+rot.m20*off.z,
+                rot.m01*off.x+rot.m11*off.y+rot.m21*off.z,
+                rot.m02*off.x+rot.m12*off.y+rot.m22*off.z);
         
-        return translate(offset);
+        move.mult((run?runningSpeed:walkingSpeed)*Client.instance.renderer.deltaTime);
+        
+        return translate(move);
     }
     
     

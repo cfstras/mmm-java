@@ -46,7 +46,7 @@ public class EarthGenerator extends WorldGenerator{
         for (int x = 0; x < Chunklet.csl; x++) {
             for (int y = 0; y < Chunklet.csl; y++) {
                 for (int z = 0; z < Chunklet.csl; z++) {
-                    if (c.parent.height + y > -5 && c.parent.height + y < 5) {
+                    if (c.parent.height + y >= -5 && c.parent.height + y < 5) {
                         c.blocks[x + Chunklet.csl * y + Chunklet.csl2 * z] = StaticBlock.GRASS;
                     } else if (c.parent.height + y < -5 && c.parent.height + y > -100) {
                         c.blocks[x + Chunklet.csl * y + Chunklet.csl2 * z] = StaticBlock.STONE;
