@@ -78,9 +78,10 @@ public class GLChunklet extends Chunklet implements WorkerTask {
      * 
      * struct vertex {
      *      float posX, posY, posZ;
-     *      float lightLevel;
-     *      float texX, texY, texZ;
-     *      float padding; // does nothing.
+     *      //float lightLevel;
+     *      //float texX, texY, texZ;
+     *      int orientation;
+     *      //float padding; // does nothing.
      * }
      * 
      * @param targetV the target vertex buffer, if one is avaliable.
@@ -91,7 +92,7 @@ public class GLChunklet extends Chunklet implements WorkerTask {
         //build chunk
         //TODO compress surfaces
         // needed:    float perVertex
-        int vertexSize = 8;
+        int vertexSize = 4;
         int indexSize = 1;
         int vertices = 0;
         int indices = 0;
@@ -99,11 +100,11 @@ public class GLChunklet extends Chunklet implements WorkerTask {
         for(Block b:blocks){
             if(b!=null){
                 //TODO check for special block
-                vertices += 8;
+                vertices += 6*4;
                 indices += 6*2*3;
             }
         }
-        blocksInside = vertices / 8;
+        blocksInside = vertices / (6*4);
         if(blocksInside==0) {
             built=true;
             //System.out.println("height "+parent.height+" discarded. x="+posX+" y="+posY+" z="+posZ);
@@ -112,24 +113,24 @@ public class GLChunklet extends Chunklet implements WorkerTask {
             //System.out.println("height "+parent.height+" has "+blocksInside+" blocks. x="+posX+" y="+posY+" z="+posZ);
         }
         
-        FloatBuffer bufferV=null;
+        vertexB=null;
         if(targetV!=null) {
-            bufferV = targetV.asFloatBuffer();
-            sizeGivenV = bufferV.capacity();
+            vertexB = targetV.asFloatBuffer();
+            sizeGivenV = vertexB.capacity();
         }
-        IntBuffer bufferI=null;
+        indexB=null;
         if(targetI!=null) {
-            bufferI = targetI.asIntBuffer();
-            sizeGivenI = bufferI.capacity();
+            indexB = targetI.asIntBuffer();
+            sizeGivenI = indexB.capacity();
         }
         if( (sizeGivenI < indices * indexSize)){
-            bufferI = BufferUtils.createIntBuffer(indices * indexSize);
+            indexB = BufferUtils.createIntBuffer(indices * indexSize);
         }
         if( (sizeGivenV < vertices * vertexSize)){
-            bufferV = BufferUtils.createFloatBuffer(vertices * vertexSize);
+            vertexB = BufferUtils.createFloatBuffer(vertices * vertexSize);
         }
-        bufferI.rewind();
-        bufferV.rewind();
+        indexB.rewind();
+        vertexB.rewind();
         //start filling
         int vertexPos=0;
         Block b;
@@ -139,39 +140,31 @@ public class GLChunklet extends Chunklet implements WorkerTask {
                     b = blocks[ix + iy*Chunklet.csl + iz*Chunklet.csl2];
                     if(b!=null){
                         // the indices
+                        
                         //front
-                        bufferI.put(vertexPos+0).put(vertexPos+4).put(vertexPos+2);
-                        bufferI.put(vertexPos+4).put(vertexPos+6).put(vertexPos+2);
+                        vertexPos = side(b,ix,iy,iz,true,false,false,true,vertexPos);
+                        indexB.put(vertexPos-3).put(vertexPos-4).put(vertexPos-2);
+                        indexB.put(vertexPos-1).put(vertexPos-3).put(vertexPos-2);
                         //right
-                        bufferI.put(vertexPos+4).put(vertexPos+5).put(vertexPos+6);
-                        bufferI.put(vertexPos+6).put(vertexPos+5).put(vertexPos+7);
+                        vertexPos = side(b,ix+1,iy,iz,false,true,false,false,vertexPos);
+                        indexB.put(vertexPos-4).put(vertexPos-3).put(vertexPos-2);
+                        indexB.put(vertexPos-3).put(vertexPos-1).put(vertexPos-2);
                         //left
-                        bufferI.put(vertexPos+2).put(vertexPos+1).put(vertexPos+0);
-                        bufferI.put(vertexPos+2).put(vertexPos+3).put(vertexPos+1);
+                        vertexPos = side(b,ix,iy,iz,true,true,false,false,vertexPos);
+                        indexB.put(vertexPos-3).put(vertexPos-4).put(vertexPos-2);
+                        indexB.put(vertexPos-1).put(vertexPos-3).put(vertexPos-2);
                         //top
-                        bufferI.put(vertexPos+2).put(vertexPos+6).put(vertexPos+3);
-                        bufferI.put(vertexPos+3).put(vertexPos+6).put(vertexPos+7);
+                        vertexPos = side(b,ix,iy+1,iz,false,false,true,false,vertexPos);
+                        indexB.put(vertexPos-3).put(vertexPos-4).put(vertexPos-2);
+                        indexB.put(vertexPos-1).put(vertexPos-3).put(vertexPos-2);
                         //back
-                        bufferI.put(vertexPos+5).put(vertexPos+1).put(vertexPos+7);
-                        bufferI.put(vertexPos+7).put(vertexPos+1).put(vertexPos+3);
+                        vertexPos = side(b,ix,iy,iz-1,false,false,false,true,vertexPos);
+                        indexB.put(vertexPos-4).put(vertexPos-3).put(vertexPos-2);
+                        indexB.put(vertexPos-3).put(vertexPos-1).put(vertexPos-2);
                         //bottom
-                        bufferI.put(vertexPos+1).put(vertexPos+4).put(vertexPos+0);
-                        bufferI.put(vertexPos+1).put(vertexPos+5).put(vertexPos+4);
-
-                        for(int iix=0;iix<2;iix++){ // do the vertices
-                            for(int iiy=0;iiy<2;iiy++){
-                                for(int iiz=0;iiz<2;iiz++){
-                                    bufferV.put(iix+ix+posX).put(iiy+iy+posY).put(iiz+iz+posZ);
-                                    bufferV.put(b.lightLevel);
-                                    bufferV.put(b.color.getRed()/255.0f).put(b.color.getGreen()/255.0f).put(b.color.getBlue()/255.0f);
-                                    bufferV.put(1337);//padding
-                                    if(vertexPos > Integer.MAX_VALUE/2){
-                                        System.out.println("Error: too many vertices.");
-                                    }
-                                    vertexPos++;
-                                }
-                            }
-                        }
+                        vertexPos = side(b,ix,iy,iz,true,false,true,false,vertexPos);
+                        indexB.put(vertexPos-4).put(vertexPos-3).put(vertexPos-2);
+                        indexB.put(vertexPos-3).put(vertexPos-1).put(vertexPos-2);
                         
                     } //if b!=null
                     
@@ -179,14 +172,14 @@ public class GLChunklet extends Chunklet implements WorkerTask {
             }//     outer
         }//         forloops
         //System.out.println("Chunklet " + blocksInside + " blocks, "
-        //    + vertexPos + "=" + bufferV.position() / vertexSize + "=" + vertices + " verts, "
-        //    + indices + "=" + bufferI.position() + " inds");
+        //    + vertexPos + "=" + vertexB.position() / vertexSize + "=" + vertices + " verts, "
+        //    + indices + "=" + indexB.position() + " inds");
         //done.
         indCount = indices;
-        bufferV.flip();
-        bufferI.flip();
-        vertexB = bufferV;
-        indexB = bufferI;
+        vertexB.flip();
+        indexB.flip();
+        //vertexB = vertexB;
+        //indexB = indexB;
         built = true;
         Client.instance.renderer.chunksToBuffer.add(this);
         //System.out.print(".");
@@ -208,6 +201,57 @@ public class GLChunklet extends Chunklet implements WorkerTask {
     @Override
     public int getPriority() {
         return WorkerTask.PRIORITY_NORM;
+    }
+
+    private int side(Block bl, int ix, int iy, int iz,
+            boolean bm, boolean bx, boolean by, boolean bz, int vertexPos) {
+        int dx = 0, dy = 0, dz = 0;
+        if (!bx) {
+            dx = 1;
+        }
+        if (!by) {
+            dy = 1;
+        }
+        if (!bz) {
+            dz = -1;
+        }
+        if (bm) {
+            //dx *= -1;
+            //dy *= -1;
+            //dz *= -1;
+        }
+        for(int a=0;a<2;a++){
+            for(int b=0;b<2;b++){
+                if(dz==0){ 
+                    vertexB.put(ix + a*dx);
+                    vertexB.put(iy + b*dy);
+                    vertexB.put(iz);
+                } else if(dy==0){
+                    vertexB.put(ix + a*dx);
+                    vertexB.put(iy);
+                    vertexB.put(iz + b*dz);
+                } else if(dx==0) {
+                    vertexB.put(ix);
+                    vertexB.put(iy + a*dy);
+                    vertexB.put(iz + b*dz);
+                } else {
+                    System.out.println("wtf");
+                }
+                
+                //vertexB.put(bl.lightLevel);
+                //orientation
+                int orientation = 0;
+                orientation += (bx ? 1 : 0) * 1;
+                orientation += (by ? 1 : 0) * 2;
+                orientation += (bz ? 1 : 0) * 4;
+                orientation += (bm ? 1 : 0) * 8;
+                vertexB.put(orientation);
+                vertexPos++;
+            }
+        }
+        
+        
+        return vertexPos;
     }
     
     

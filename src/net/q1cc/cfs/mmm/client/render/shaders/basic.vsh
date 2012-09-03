@@ -1,13 +1,13 @@
 #version 130 
 
-attribute vec3 inPos;
-attribute float inLight;
-attribute vec3 inTex;
+in vec3 inPos;
+//in float inLight;
+in float inOrient;
 //attribute float inPadding;
 
 smooth out float vLight;
-smooth out vec3 vTex;
-smooth out vec3 vPos;
+flat   out float vOrient;
+smooth out vec3  vPos;
 
 uniform mat4 projMat;
 uniform mat4 posChunkMat;
@@ -15,7 +15,7 @@ uniform mat4 posChunkMat;
 void main () {
     
     gl_Position = projMat * posChunkMat * vec4(inPos,1);
-    vLight = inLight;
-    vTex = inTex;
+    vLight = 1;//inLight;
+    vOrient = inOrient;
     vPos = inPos;
 }

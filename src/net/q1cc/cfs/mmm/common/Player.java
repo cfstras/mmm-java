@@ -15,8 +15,8 @@ import org.lwjgl.util.vector.*;
  */
 public class Player extends Entity{
     
-    float walkingSpeed=0.5f;
-    float runningSpeed=0.8f;
+    float walkingSpeed=8f;
+    float runningSpeed=0.3f;
     Controller controller;
     
     public Player() {
@@ -46,7 +46,7 @@ public class Player extends Entity{
                 rot.m01*off.x+rot.m11*off.y+rot.m21*off.z,
                 rot.m02*off.x+rot.m12*off.y+rot.m22*off.z);
         
-        move.mult((run?runningSpeed:walkingSpeed)*Client.instance.renderer.deltaTime);
+        move.multToThis((run?runningSpeed:walkingSpeed)*Client.instance.renderer.deltaTime);
         
         return translate(move);
     }

@@ -61,7 +61,7 @@ public class MainGLRender extends Thread {
     int basicShader;
     int posAttribLoc;
     int lightAttribLoc;
-    int texAttribLoc;
+    int orientAttribLoc;
     
     Matrix4f projMat;
     Matrix4f posChunkMat;
@@ -151,12 +151,12 @@ public class MainGLRender extends Thread {
         glAttachShader(basicShader, vertShader);
         glAttachShader(basicShader, fragShader);
         glLinkProgram(basicShader);
-        System.out.println("ShaderLink : "+glGetProgramInfoLog(basicShader, 512));
+        System.out.println("Shader Link : "+glGetProgramInfoLog(basicShader, 512));
         checkGLError();
         
         posAttribLoc = glGetAttribLocation(basicShader, "inPos");
         lightAttribLoc = glGetAttribLocation(basicShader, "inLight");
-        texAttribLoc = glGetAttribLocation(basicShader, "inTex");
+        orientAttribLoc = glGetAttribLocation(basicShader, "inOrient");
     }
     private static String[] readString(InputStream in) throws IOException {
         BufferedReader i = new BufferedReader(new InputStreamReader(in));
@@ -168,7 +168,7 @@ public class MainGLRender extends Thread {
         i.close();
         return l.toArray(new String[l.size()]);
     }
-    
+    boolean f5=false;
     private void keyboard() {
         if(Keyboard.isKeyDown(Keyboard.KEY_ESCAPE)) {       // Exit if Escape is pressed
             Mouse.setGrabbed(false);
@@ -180,10 +180,27 @@ public class MainGLRender extends Thread {
             f11 = true;                                      // Tell Program F1 Is Being Held
             switchMode();                                   // Toggle Fullscreen / Windowed Mode
         }
-        if(!Keyboard.isKeyDown(Keyboard.KEY_F11)) {          // Is F11 Being Pressed?
+        if(!Keyboard.isKeyDown(Keyboard.KEY_F11)) {
             f11 = false;
         }
-        
+        if(Keyboard.isKeyDown(Keyboard.KEY_F5)&&!f5) {
+            loadShaders();
+            taskPool.add(new WorkerTask(){
+            @Override
+            public synchronized boolean doWork() {
+                prepareAllChunklets(true);
+                return true;
+            }
+
+            @Override
+            public int getPriority() {
+                return WorkerTask.PRIORITY_MAX;
+            }
+        });
+            f5=true;
+        } else {
+            f5=false;
+        }
         boolean left=false,right=false,forward=false,back=false;
         if(Keyboard.isKeyDown(Keyboard.KEY_A)) {
             left=true;
@@ -198,18 +215,15 @@ public class MainGLRender extends Thread {
             back=true;
         }
         if(Keyboard.isKeyDown(Keyboard.KEY_SPACE)){
-            player.position.y+=15*deltaTime;
+            player.position.y+=5*deltaTime;
         }
         if(Keyboard.isKeyDown(Keyboard.KEY_C)){
-            player.position.y-=15*deltaTime;
+            player.position.y-=5*deltaTime;
         }
         if(left||right||forward||back){
             player.move(forward, left, right, back, false);
         }
         
-        
-        //cameraRotY=Mouse.getDX()*0.05f;
-        //cameraRotX=Mouse.getDY()*0.05f;
         if(Mouse.isGrabbed()){
             player.rotation.x+=Mouse.getDX()*0.1f*mouseSpeed;
             player.rotation.y+=-Mouse.getDY()*0.1f*mouseSpeed;
@@ -221,11 +235,6 @@ public class MainGLRender extends Thread {
                 player.rotation.x+=360f;
             else if(player.rotation.x>359f)
                 player.rotation.x-=360f;
-            
-            //player.rotationNormal=Vec3f.BACK;
-            //player.rotationNormal=Quaternionf.rotate(player.rotationNormal, -player.rotation.y, true, false, false);
-            //player.rotationNormal=Quaternionf.rotate(player.rotationNormal, -player.rotation.x, false, true, false);
-            
             
         } else if(Mouse.isButtonDown(0) && !Mouse.isGrabbed()) {
             Mouse.setGrabbed(true);
@@ -252,7 +261,6 @@ public class MainGLRender extends Thread {
     
     private boolean render() {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glLoadIdentity();
         setCamera();
         
         // wireframe mode
@@ -281,9 +289,6 @@ public class MainGLRender extends Thread {
     }
     
     void setCamera() {
-        //glRotatef(player.rotation.y,1.0f,0.0f,0.0f);  //rotate our camera on teh x-axis (up down)
-        //glRotatef(player.rotation.x,0.0f,1.0f,0.0f);  //rotate our camera on the y-axis (left right)
-        //glTranslated(-player.position.x,-player.position.y,-player.position.z); //translate the screento the position of our camera
         posChunkMat.setIdentity();
         posChunkMat.rotate((float)Math.toRadians(player.rotation.y),
                 new Vector3f(1.0f,0.0f,0.0f));
@@ -310,7 +315,7 @@ public class MainGLRender extends Thread {
             Display.setTitle(windowTitle);
             Display.setVSyncEnabled(true);
             Display.setResizable(true);
-            //ContextAttribs attrib = new ContextAttribs(3,2);//.withProfileCore(true);
+            //ContextAttribs attrib = new ContextAttribs(3,0);//.withProfileCore(true);
             //attrib = attrib.withForwardCompatible(true);
             //attrib = attrib.withProfileCompatibility(true);
             //attrib = attrib.withDebug(true);
@@ -330,7 +335,7 @@ public class MainGLRender extends Thread {
         taskPool.add(new WorkerTask(){
             @Override
             public synchronized boolean doWork() {
-                convertAllBlocks();
+                prepareAllChunklets(false);
                 return true;
             }
 
@@ -353,12 +358,13 @@ public class MainGLRender extends Thread {
         glEnable(GL_DEPTH_TEST); // Enables Depth Testing
         glDepthFunc(GL_LEQUAL); // The Type Of Depth Testing To Do
         
-        //glEnable(GL_CULL_FACE);
-        //glFrontFace(GL_CCW);
+        
+        glEnable(GL_CULL_FACE);
+        glFrontFace(GL_CCW);
         
         loadShaders();
         setupProjection();
-
+        
         // Really Nice Perspective Calculations
         //glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
     }
@@ -405,23 +411,32 @@ public class MainGLRender extends Thread {
         fps++;
     }
     
-    void convertAllBlocks() {
-        doConvert(world.generateOctree);
+    void prepareAllChunklets(boolean reload) {
+        recursePrepare(world.generateOctree,reload);
     }
     
-    void doConvert(WorldOctree oc){
+    void recursePrepare(WorldOctree oc, boolean reload){
         if(oc==null) return;
-        if(oc.block!=null && !(oc.block instanceof GLChunklet)){
-            GLChunklet n = new GLChunklet(oc.block);
-            oc.block = n;
-            taskPool.add(n);
+        if(oc.block!=null){
+            if(!reload){
+                if(!(oc.block instanceof GLChunklet)){
+                    GLChunklet n = new GLChunklet(oc.block);
+                    oc.block = n;
+                    taskPool.add(n);
+                }
+            } else if(oc.block instanceof GLChunklet){
+                ((GLChunklet)oc.block).built=false;
+                taskPool.add((GLChunklet)oc.block);
+            }
+            
+            
         }
         if(!oc.hasSubtrees) return;
         for(WorldOctree c: oc.subtrees){
-            doConvert(c);
+            recursePrepare(c,reload);
         }
     }
-
+    
     private void bufferChunk(GLChunklet cl) {
         int vboID = glGenBuffers();
         int iboID = glGenBuffers();
@@ -436,12 +451,12 @@ public class MainGLRender extends Thread {
         //glEnableClientState(GL_COLOR_ARRAY);
         //glEnableClientState(GL_INDEX_ARRAY);
         //checkGLError();
-        glEnableVertexAttribArray(0);
-        glEnableVertexAttribArray(1);
-        glEnableVertexAttribArray(2);
-        glVertexAttribPointer(0, 3, GL_FLOAT, false,4*8,4*0);
-        glVertexAttribPointer(1, 1, GL_FLOAT, false,4*8,4*3);
-        glVertexAttribPointer(2, 3, GL_FLOAT, false,4*8,4*4);
+        glEnableVertexAttribArray(posAttribLoc);
+        //glEnableVertexAttribArray(lightAttribLoc);
+        glEnableVertexAttribArray(orientAttribLoc);
+        glVertexAttribPointer(posAttribLoc, 3, GL_FLOAT, false, 4*4, 4*0);
+        //glVertexAttribPointer(lightAttribLoc, 1, GL_FLOAT, false, 4 * 5, 4 * 3);
+        glVertexAttribPointer(orientAttribLoc, 1, GL_FLOAT, false, 4*4, 4*3);
         //glVertexPointer(3, GL_FLOAT,4*8, 4*0);
         //glColorPointer(3,GL_FLOAT,4*8,4*4);
         checkGLError();
@@ -458,19 +473,26 @@ public class MainGLRender extends Thread {
         if(oc.block!=null && oc.block instanceof GLChunklet){
             GLChunklet g = (GLChunklet)oc.block;
             if(g.vaoID!=-1 && g.blocksInside>0){
+                Matrix4f posChunkMatn = new Matrix4f(posChunkMat);
+                posChunkMatn.translate(new Vector3f(g.posX,g.posY,g.posZ));
+                posChunkMatn.store(posChunkMatB);
+                posChunkMatB.flip();
+                glUniformMatrix4(glGetUniformLocation(basicShader, "posChunkMat"),
+                        false, posChunkMatB);
+                
                 //render this
                 glBindVertexArray(g.vaoID);
                 glBindBuffer(GL_ARRAY_BUFFER, g.vboID);
                 glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g.iboID);
                 glEnableVertexAttribArray(posAttribLoc);
-                glEnableVertexAttribArray(lightAttribLoc);
-                glEnableVertexAttribArray(texAttribLoc);
+                //glEnableVertexAttribArray(lightAttribLoc);
+                glEnableVertexAttribArray(orientAttribLoc);
                 //glEnableClientState(GL_VERTEX_ARRAY);
                 //glEnableClientState(GL_COLOR_ARRAY);
                 //glEnableClientState(GL_INDEX_ARRAY);
-                glVertexAttribPointer(posAttribLoc, 3, GL_FLOAT, false,4*8,4*0);
-                glVertexAttribPointer(lightAttribLoc, 1, GL_FLOAT, false,4*8,4*3);
-                glVertexAttribPointer(texAttribLoc, 3, GL_FLOAT, false,4*8,4*4);
+                glVertexAttribPointer(posAttribLoc, 3, GL_FLOAT, false,4*4,4*0);
+                //glVertexAttribPointer(lightAttribLoc, 1, GL_FLOAT, false,4*5,4*3);
+                glVertexAttribPointer(orientAttribLoc, 1, GL_FLOAT, false,4*4,4*3);
                 //glVertexPointer(3, GL_FLOAT, 4 * 8, 4 * 0);
                 //glColorPointer(3, GL_FLOAT, 4 * 8, 4 * 4);
                 glDrawElements(GL_TRIANGLES, g.indCount, GL_UNSIGNED_INT, 0);
@@ -506,15 +528,7 @@ public class MainGLRender extends Thread {
 
     private void setupProjection() {
         displayMode = Display.getDisplayMode();
-        //glMatrixMode(GL_PROJECTION); // Select The Projection Matrix
-        //glLoadIdentity(); // Reset The Projection Matrix
-        // Calculate The Aspect Ratio Of The Window
-        //gluPerspective(
-        //  80.0f,
-        //  (float) displayMode.getWidth() / (float) displayMode.getHeight(),
-        //  0.5f,
-        //  1024.0f);
-        //glMatrixMode(GL_MODELVIEW); // Select The Modelview Matrix
+
         projMat = getProjection(80,
                 (float) displayMode.getWidth() / (float) displayMode.getHeight(),
                 0.5f, 1000.0f);
