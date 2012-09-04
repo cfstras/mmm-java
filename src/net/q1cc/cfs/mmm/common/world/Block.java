@@ -12,6 +12,7 @@ import org.lwjgl.util.Color;
  * @author claus
  */
 public class Block implements Cloneable, Serializable{
+    private static final long serialVersionUID = 9166001L;
 
     boolean isSolid;
     
@@ -22,21 +23,21 @@ public class Block implements Cloneable, Serializable{
      */
     public float brightness;
     public Color color;
-    public float lightLevel;
+    public float lightLevel=1;
     
     public boolean isOpaque;
+    public int blockID;
     
     public Block(boolean isSolid,
     float brightness,
-    boolean isSizeLimited,
-    int minOctreeLvl,
-    int maxOctreeLvl,
-    String texture_filename,
-    Color color,boolean isOpaque){
+    Color color,
+    boolean isOpaque,
+    int blockID){
         this.isSolid=isSolid;
         this.brightness=brightness;
         this.color=color;
         this.isOpaque=isOpaque;
+        this.blockID=blockID;
     }
     
     @Override
@@ -53,6 +54,6 @@ public class Block implements Cloneable, Serializable{
     
     @Override
     public String toString() {
-        return "B,"+ (isSolid?"solid,":"")+"emits="+brightness+",light="+lightLevel+",c="+color.toString();
+        return "B"+blockID+","+ (isSolid?"solid,":"")+"emits="+brightness+",light="+lightLevel+",c="+color.toString();
     }
 }

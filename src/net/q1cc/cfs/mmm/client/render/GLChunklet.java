@@ -48,6 +48,8 @@ public class GLChunklet extends Chunklet implements WorkerTask {
     public int indCount;
     
     public FloatBuffer vertexB;
+    public IntBuffer vertexIB;
+    public ByteBuffer vertexBB;
     public IntBuffer indexB;
     
     boolean built=false;
@@ -77,11 +79,12 @@ public class GLChunklet extends Chunklet implements WorkerTask {
      * Vertices are stored as such:
      * 
      * struct vertex {
-     *      float posX, posY, posZ;
-     *      //float lightLevel;
-     *      //float texX, texY, texZ;
-     *      int orientation;
-     *      //float padding; // does nothing.
+     *      in vec3  inPos;
+     *      in float inLight;
+     *      in int   inOrient;
+     *      in int   inColor;
+     *      in int   inBlock;
+     *      in float padding;
      * }
      * 
      * @param targetV the target vertex buffer, if one is avaliable.
@@ -92,7 +95,7 @@ public class GLChunklet extends Chunklet implements WorkerTask {
         //build chunk
         //TODO compress surfaces
         // needed:    float perVertex
-        int vertexSize = 4;
+        int vertexSize = 8;
         int indexSize = 1;
         int vertices = 0;
         int indices = 0;
@@ -127,9 +130,12 @@ public class GLChunklet extends Chunklet implements WorkerTask {
             indexB = BufferUtils.createIntBuffer(indices * indexSize);
         }
         if( (sizeGivenV < vertices * vertexSize)){
-            vertexB = BufferUtils.createFloatBuffer(vertices * vertexSize);
+            vertexBB = BufferUtils.createByteBuffer(vertices * vertexSize * 4);
         }
+        vertexIB = vertexBB.asIntBuffer();
+        vertexB = vertexBB.asFloatBuffer();
         indexB.rewind();
+        vertexIB.rewind();
         vertexB.rewind();
         //start filling
         int vertexPos=0;
@@ -238,14 +244,28 @@ public class GLChunklet extends Chunklet implements WorkerTask {
                     System.out.println("wtf");
                 }
                 
-                //vertexB.put(bl.lightLevel);
+                vertexB.put(bl.lightLevel);
                 //orientation
                 int orientation = 0;
                 orientation += (bx ? 1 : 0) * 1;
                 orientation += (by ? 1 : 0) * 2;
                 orientation += (bz ? 1 : 0) * 4;
                 orientation += (bm ? 1 : 0) * 8;
-                vertexB.put(orientation);
+                //texture coordinates
+                orientation += (a==1? 1:0) * 16;
+                orientation += (b==1? 1:0) * 32;
+                vertexIB.position(vertexB.position());
+                vertexIB.put(orientation);
+                //Color
+                int col=0;
+                col |= bl.color.getRed()   << 3*8;
+                col |= bl.color.getGreen() << 2*8;
+                col |= bl.color.getBlue()  << 1*8;
+                col |= bl.color.getAlpha();
+                vertexIB.put(col);
+                vertexIB.put(bl.blockID);
+                vertexB.position(vertexIB.position());
+                vertexB.put(1337);
                 vertexPos++;
             }
         }

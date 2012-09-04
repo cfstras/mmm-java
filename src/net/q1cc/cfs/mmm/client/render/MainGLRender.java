@@ -17,6 +17,7 @@ import net.q1cc.cfs.mmm.common.math.Vec3f;
 import org.lwjgl.LWJGLException;
 import static org.lwjgl.opengl.GL11.*;
 import static org.lwjgl.opengl.GL15.*;
+import static org.lwjgl.opengl.GL13.*;
 import static org.lwjgl.opengl.GL30.*;
 import static org.lwjgl.opengl.GL20.*;
 import org.lwjgl.opengl.*;
@@ -59,10 +60,20 @@ public class MainGLRender extends Thread {
     float mouseSpeed=1.0f;
     
     int basicShader;
-    int posAttribLoc;
-    int lightAttribLoc;
-    int orientAttribLoc;
+    int attPos;
+    int attLight;
+    int attOrient;
+    int attColor;
+    int attBlock;
     
+    int uniBlockTex;
+    int uniTexRows;
+    int uniTexCols;
+    int uniProjMat;
+    int uniPosChunkMat;
+    
+    Texture blockTexture;
+   
     Matrix4f projMat;
     Matrix4f posChunkMat;
     FloatBuffer projMatB;
@@ -85,7 +96,6 @@ public class MainGLRender extends Thread {
     
     @Override
     public void run() {
-        texL= new TextureLoader();
         init();
         
         lastFPS = getTime();
@@ -154,9 +164,17 @@ public class MainGLRender extends Thread {
         System.out.println("Shader Link : "+glGetProgramInfoLog(basicShader, 512));
         checkGLError();
         
-        posAttribLoc = glGetAttribLocation(basicShader, "inPos");
-        lightAttribLoc = glGetAttribLocation(basicShader, "inLight");
-        orientAttribLoc = glGetAttribLocation(basicShader, "inOrient");
+        attPos = glGetAttribLocation(basicShader, "inPos");
+        attLight = glGetAttribLocation(basicShader, "inLight");
+        attOrient = glGetAttribLocation(basicShader, "inOrient");
+        attColor = glGetAttribLocation(basicShader, "inColor");
+        attBlock = glGetAttribLocation(basicShader, "inBlock");
+        
+        uniPosChunkMat = glGetUniformLocation(basicShader, "posChunkMat");
+        uniProjMat = glGetUniformLocation(basicShader, "projMat");
+        uniBlockTex = glGetUniformLocation(basicShader, "blockTex");
+        uniTexRows = glGetUniformLocation(basicShader, "texRows");
+        uniTexCols = glGetUniformLocation(basicShader, "texCols");
     }
     private static String[] readString(InputStream in) throws IOException {
         BufferedReader i = new BufferedReader(new InputStreamReader(in));
@@ -266,8 +284,14 @@ public class MainGLRender extends Thread {
         // wireframe mode
         //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         glUseProgram(basicShader);
-        glUniformMatrix4(glGetUniformLocation(basicShader, "projMat"),false,projMatB);
-        glUniformMatrix4(glGetUniformLocation(basicShader, "posChunkMat"),false,posChunkMatB);
+        glUniformMatrix4(uniProjMat,false,projMatB);
+        glUniformMatrix4(uniPosChunkMat,false,posChunkMatB);
+        
+        glActiveTexture(GL_TEXTURE0);
+        blockTexture.bind();
+        glUniform1i(uniBlockTex,0);
+        glUniform1i(uniTexRows,6);
+        glUniform1i(uniTexCols,6);
         
         //TODO all the render methods here
         chunkletsRendered=0;
@@ -363,6 +387,7 @@ public class MainGLRender extends Thread {
         glFrontFace(GL_CCW);
         
         loadShaders();
+        loadTextures();
         setupProjection();
         
         // Really Nice Perspective Calculations
@@ -447,18 +472,17 @@ public class MainGLRender extends Thread {
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,iboID);
         glBufferData(GL_ELEMENT_ARRAY_BUFFER,cl.indexB,GL_STATIC_DRAW);
         checkGLError();
-        //glEnableClientState(GL_VERTEX_ARRAY);
-        //glEnableClientState(GL_COLOR_ARRAY);
-        //glEnableClientState(GL_INDEX_ARRAY);
-        //checkGLError();
-        glEnableVertexAttribArray(posAttribLoc);
-        //glEnableVertexAttribArray(lightAttribLoc);
-        glEnableVertexAttribArray(orientAttribLoc);
-        glVertexAttribPointer(posAttribLoc, 3, GL_FLOAT, false, 4*4, 4*0);
-        //glVertexAttribPointer(lightAttribLoc, 1, GL_FLOAT, false, 4 * 5, 4 * 3);
-        glVertexAttribPointer(orientAttribLoc, 1, GL_FLOAT, false, 4*4, 4*3);
-        //glVertexPointer(3, GL_FLOAT,4*8, 4*0);
-        //glColorPointer(3,GL_FLOAT,4*8,4*4);
+        glEnableVertexAttribArray(attPos);
+        glEnableVertexAttribArray(attLight);
+        glEnableVertexAttribArray(attOrient);
+        glEnableVertexAttribArray(attColor);
+        glEnableVertexAttribArray(attBlock);
+        glVertexAttribPointer(attPos, 3, GL_FLOAT, false, 4*8, 4*0);
+        glVertexAttribPointer(attLight, 1, GL_FLOAT, false, 4*8, 4*3);
+        glVertexAttribPointer(attOrient, 1, GL_INT, false, 4*8, 4*4);
+        glVertexAttribPointer(attColor, 1, GL_INT, false, 4*8, 4*5);
+        glVertexAttribPointer(attBlock, 1, GL_INT, false, 4*8, 4*6);
+
         checkGLError();
         glBindVertexArray(0);
         cl.vboID = vboID;
@@ -477,24 +501,22 @@ public class MainGLRender extends Thread {
                 posChunkMatn.translate(new Vector3f(g.posX,g.posY,g.posZ));
                 posChunkMatn.store(posChunkMatB);
                 posChunkMatB.flip();
-                glUniformMatrix4(glGetUniformLocation(basicShader, "posChunkMat"),
-                        false, posChunkMatB);
+                glUniformMatrix4(uniPosChunkMat, false, posChunkMatB);
                 
                 //render this
                 glBindVertexArray(g.vaoID);
                 glBindBuffer(GL_ARRAY_BUFFER, g.vboID);
                 glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g.iboID);
-                glEnableVertexAttribArray(posAttribLoc);
-                //glEnableVertexAttribArray(lightAttribLoc);
-                glEnableVertexAttribArray(orientAttribLoc);
-                //glEnableClientState(GL_VERTEX_ARRAY);
-                //glEnableClientState(GL_COLOR_ARRAY);
-                //glEnableClientState(GL_INDEX_ARRAY);
-                glVertexAttribPointer(posAttribLoc, 3, GL_FLOAT, false,4*4,4*0);
-                //glVertexAttribPointer(lightAttribLoc, 1, GL_FLOAT, false,4*5,4*3);
-                glVertexAttribPointer(orientAttribLoc, 1, GL_FLOAT, false,4*4,4*3);
-                //glVertexPointer(3, GL_FLOAT, 4 * 8, 4 * 0);
-                //glColorPointer(3, GL_FLOAT, 4 * 8, 4 * 4);
+                glEnableVertexAttribArray(attPos);
+                glEnableVertexAttribArray(attLight);
+                glEnableVertexAttribArray(attOrient);
+                glEnableVertexAttribArray(attColor);
+                glEnableVertexAttribArray(attBlock);
+                glVertexAttribPointer(attPos, 3, GL_FLOAT, false, 4*8, 4*0);
+                glVertexAttribPointer(attLight, 1, GL_FLOAT, false, 4*8, 4*3);
+                glVertexAttribPointer(attOrient, 1, GL_INT, false, 4*8, 4*4);
+                glVertexAttribPointer(attColor, 1, GL_INT, false, 4*8, 4*5);
+                glVertexAttribPointer(attBlock, 1, GL_INT, false, 4*8, 4*6);
                 glDrawElements(GL_TRIANGLES, g.indCount, GL_UNSIGNED_INT, 0);
                 glBindVertexArray(0);
                 //glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -564,6 +586,21 @@ public class MainGLRender extends Thread {
         matrix.flip();
         id.load(matrix);
         return id;
+    }
+
+    private void loadTextures() {
+        texL= new TextureLoader();
+        try {
+            Texture b = texL.getTexture("/png/blocks.png", GL_TEXTURE_2D,GL_RGBA,GL_LINEAR,GL_NEAREST);
+            if(b==null){
+                System.out.println("error: texture could not be loaded.");
+            } else {
+                
+                blockTexture=b;
+            }
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
     }
     
 }
