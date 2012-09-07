@@ -289,11 +289,11 @@ public class WorldOctree implements Serializable{
     
     /**
      * returns an array of the six octrees adjecent to the faces of this octree.
-     * might contain "null" elements, guaranteed to be 8 in length.
+     * might contain "null" elements, guaranteed to be 6 in length.
      * @return 
      */
     public WorldOctree[] getSixSourrounders() {
-        WorldOctree[] surr=new WorldOctree[8];
+        WorldOctree[] surr=new WorldOctree[6];
         int spID=getSPID();
         /*if((index&1)==1)
             x=true;

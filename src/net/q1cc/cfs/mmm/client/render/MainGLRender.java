@@ -377,7 +377,7 @@ public class MainGLRender extends Thread {
         glDepthFunc(GL_LEQUAL); // The Type Of Depth Testing To Do
         
         
-        glEnable(GL_CULL_FACE);
+        //glEnable(GL_CULL_FACE);
         glFrontFace(GL_CCW);
         
         loadShaders();
@@ -419,11 +419,11 @@ public class MainGLRender extends Thread {
         deltaTime = (time - lastFrame)/1000f;
         lastFrame = time;
         
-        if (time - lastFPS > 1000) {
+        if (time - lastFPS > 5000) {
             Display.setTitle(windowTitle+ " FPS: " + fps +" deltaT: "+deltaTime+
                     " rot: "+player.rotation+ " c: "+chunkletsRendered);
             fps = 0; //reset the FPS counter
-            lastFPS += 1000; //add one second
+            lastFPS += 5000; //add one second
         }
         fps++;
     }

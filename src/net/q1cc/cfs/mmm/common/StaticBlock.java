@@ -18,7 +18,7 @@ public class StaticBlock {
      */
     //public static final Block AIR= new Block(false,0.0f,new Color(0, 0, 0, 0),false);
     
-    public static final Block TORCH= new Block(false,0.7f, new Color(240, 220, 0, 100),true,0);
+    public static final Block TORCH= new Block(false,0.7f, new Color(240, 220, 0, 100),false,0);
     
     public static final Block DIRT= new Block(true,0.0f, new Color(255, 255, 255, 255),true,1);
     public static final Block GRASS= new Block(true,0.0f, new Color(140, 255, 100, 255),true,2);

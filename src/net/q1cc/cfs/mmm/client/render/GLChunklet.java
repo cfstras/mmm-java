@@ -82,16 +82,13 @@ public class GLChunklet extends Chunklet implements WorkerTask {
      * Builds a chunks representation into video memory.
      * takes an existing ByteBuffer as source, if null or too small, requests
      * a new one.
-     * Vertices are stored as such:
-     * 
-     * struct vertex {
-     *      in vec3  inPos;
-     *      in float inLight;
-     *      in int   inOrient;
-     *      in int   inColor;
-     *      in int   inBlock;
-     *      in float padding;
-     * }
+     * side ids are:
+     * 0 top
+     * 1 bottom
+     * 2 left
+     * 3 right
+     * 4 front
+     * 5 back
      * 
      * @param targetV the target vertex buffer, if one is avaliable.
      * @param targetI same for index buffer
@@ -99,29 +96,35 @@ public class GLChunklet extends Chunklet implements WorkerTask {
     public synchronized void buildChunklet(ByteBuffer targetV, ByteBuffer targetI) {
         int sizeGivenI=0, sizeGivenV=0;
         //build chunk
-        //TODO compress surfaces
+        
+        //first pass: check for hidden faces and count blocks
         // needed:    float perVertex
         int vertexSize = 8;
         int indexSize = 1;
         int vertices = 0;
         int indices = 0;
-        
-        for(Block b:blocks){
-            if(b!=null){
-                //TODO check for special block
-                vertices += 6*4;
-                indices += 6*2*3;
+        int vertexPos=0;
+        Block b;
+        blocksInside=0;
+        for (int ix=0; ix<Chunklet.csl; ix++) {
+            for(int iy=0; iy<Chunklet.csl; iy++) {
+                for(int iz=0; iz<Chunklet.csl; iz++) {
+                    b = blocks[ix + iy*Chunklet.csl + iz*Chunklet.csl2];
+                    if(b!=null){
+                        blocksInside++;
+                        vertexPos = block(b,ix,iy,iz,vertexPos,false);
+                    }
+                }
             }
         }
-        blocksInside = vertices / (6*4);
-        if(blocksInside==0) {
+        vertices += 4 * vertexPos;
+        indices += 2*3 * vertexPos;
+        if(blocksInside==0 || indices == 0) {
             built=true;
-            //System.out.println("height "+parent.height+" discarded. x="+posX+" y="+posY+" z="+posZ);
             return;
-        } else {
-            //System.out.println("height "+parent.height+" has "+blocksInside+" blocks. x="+posX+" y="+posY+" z="+posZ);
         }
         
+        //second pass: generate visible faces
         vertexB=null;
         if(targetV!=null) {
             vertexB = targetV.asFloatBuffer();
@@ -144,37 +147,24 @@ public class GLChunklet extends Chunklet implements WorkerTask {
         vertexIB.rewind();
         vertexB.rewind();
         //start filling
-        int vertexPos=0;
-        Block b;
+        vertexPos=0;
         for (int ix=0; ix<Chunklet.csl; ix++) {
             for(int iy=0; iy<Chunklet.csl; iy++) {
                 for(int iz=0; iz<Chunklet.csl; iz++) {
                     b = blocks[ix + iy*Chunklet.csl + iz*Chunklet.csl2];
                     if(b!=null){
-                        // the indices
-                        for(int i=0;i<6;i++) {
-                            indexB.put(vertexPos+0).put(vertexPos+1).put(vertexPos+2);
-                            indexB.put(vertexPos+0).put(vertexPos+2).put(vertexPos+3);
-                            vertexPos = side(b,ix,iy,iz,i,vertexPos);
-                        }
-                    } //if b!=null
-                    
+                        vertexPos = block(b,ix,iy,iz,vertexPos,true);
+                    }
                 }// three
             }//     outer
         }//         forloops
-        //System.out.println("Chunklet " + blocksInside + " blocks, "
-        //    + vertexPos + "=" + vertexB.position() / vertexSize + "=" + vertices + " verts, "
-        //    + indices + "=" + indexB.position() + " inds");
+
         //done.
         indCount = indices;
         vertexB.flip();
         indexB.flip();
-        //vertexB = vertexB;
-        //indexB = indexB;
         built = true;
         Client.instance.renderer.chunksToBuffer.add(this);
-        //System.out.print(".");
-
     }
 
     @Override
@@ -196,65 +186,70 @@ public class GLChunklet extends Chunklet implements WorkerTask {
     private int side(Block bl, int ix, int iy, int iz, int side, int vertexPos) {
         if(side==0) {//top
             vertexB.put(ix).put(iy+1).put(iz+1);
-            vertexPos = vert(0,1,side,bl,vertexPos);
+            vert(0,1,side,bl);
             vertexB.put(ix+1).put(iy+1).put(iz+1);
-            vertexPos = vert(1,1,side,bl,vertexPos);
+            vert(1,1,side,bl);
             vertexB.put(ix+1).put(iy+1).put(iz);
-            vertexPos = vert(1,0,side,bl,vertexPos);
+            vert(1,0,side,bl);
             vertexB.put(ix).put(iy+1).put(iz);
-            vertexPos = vert(0,0,side,bl,vertexPos);
+            vert(0,0,side,bl);
+            vertexPos += 4;
         } else if(side==1) {//bot
             vertexB.put(ix).put(iy).put(iz);
-            vertexPos = vert(0,1,side,bl,vertexPos);
+            vert(0,1,side,bl);
             vertexB.put(ix+1).put(iy).put(iz);
-            vertexPos = vert(1,1,side,bl,vertexPos);
+            vert(1,1,side,bl);
             vertexB.put(ix+1).put(iy).put(iz+1);
-            vertexPos = vert(1,0,side,bl,vertexPos);
+            vert(1,0,side,bl);
             vertexB.put(ix).put(iy).put(iz+1);
-            vertexPos = vert(0,0,side,bl,vertexPos);
+            vert(0,0,side,bl);
+            vertexPos += 4;
         } else if(side==2) {//left
             vertexB.put(ix).put(iy).put(iz);
-            vertexPos = vert(0,1,side,bl,vertexPos);
+            vert(0,1,side,bl);
             vertexB.put(ix).put(iy).put(iz+1);
-            vertexPos = vert(1,1,side,bl,vertexPos);
+            vert(1,1,side,bl);
             vertexB.put(ix).put(iy+1).put(iz+1);
-            vertexPos = vert(1,0,side,bl,vertexPos);
+            vert(1,0,side,bl);
             vertexB.put(ix).put(iy+1).put(iz);
-            vertexPos = vert(0,0,side,bl,vertexPos);
+            vert(0,0,side,bl);
+            vertexPos += 4;
         } else if(side==3) {//right
             vertexB.put(ix+1).put(iy).put(iz+1);
-            vertexPos = vert(0,1,side,bl,vertexPos);
+            vert(0,1,side,bl);
             vertexB.put(ix+1).put(iy).put(iz);
-            vertexPos = vert(1,1,side,bl,vertexPos);
+            vert(1,1,side,bl);
             vertexB.put(ix+1).put(iy+1).put(iz);
-            vertexPos = vert(1,0,side,bl,vertexPos);
+            vert(1,0,side,bl);
             vertexB.put(ix+1).put(iy+1).put(iz+1);
-            vertexPos = vert(0,0,side,bl,vertexPos);
+            vert(0,0,side,bl);
+            vertexPos += 4;
         } else if(side==4) {//front
             vertexB.put(ix).put(iy).put(iz+1);
-            vertexPos = vert(0,1,side,bl,vertexPos);
+            vert(0,1,side,bl);
             vertexB.put(ix+1).put(iy).put(iz+1);
-            vertexPos = vert(1,1,side,bl,vertexPos);
+            vert(1,1,side,bl);
             vertexB.put(ix+1).put(iy+1).put(iz+1);
-            vertexPos = vert(1,0,side,bl,vertexPos);
+            vert(1,0,side,bl);
             vertexB.put(ix).put(iy+1).put(iz+1);
-            vertexPos = vert(0,0,side,bl,vertexPos);
+            vert(0,0,side,bl);
+            vertexPos += 4;
         } else if(side==5) {//back
             vertexB.put(ix+1).put(iy).put(iz);
-            vertexPos = vert(0,1,side,bl,vertexPos);
+            vert(0,1,side,bl);
             vertexB.put(ix).put(iy).put(iz);
-            vertexPos = vert(1,1,side,bl,vertexPos);
+            vert(1,1,side,bl);
             vertexB.put(ix).put(iy+1).put(iz);
-            vertexPos = vert(1,0,side,bl,vertexPos);
+            vert(1,0,side,bl);
             vertexB.put(ix+1).put(iy+1).put(iz);
-            vertexPos = vert(0,0,side,bl,vertexPos);
+            vert(0,0,side,bl);
+            vertexPos += 4;
         }
         
         return vertexPos;
     }
     
-    int vert(int u, int v, int side,
-            Block bl, int vertexPos){
+    private void vert(int u, int v, int side, Block bl){
         
         vertexB.put((float)(u)/texture_block_cols+(float)(side)/texture_block_cols)
                 .put((float)(v)/texture_block_rows+(float)(bl.blockID)/texture_block_rows);
@@ -266,11 +261,71 @@ public class GLChunklet extends Chunklet implements WorkerTask {
         col |= c.getAlpha() << (3 * 8); //a
         col |= c.getBlue() << (2 * 8); //b
         col |= c.getGreen() << (1 * 8); //g
-        col |= c.getRed() << (0 * 8); //r
+        col |= c.getRed(); //r
         vertexIB.put(col);
         vertexB.position(vertexIB.position());
         vertexB.put(1337).put(1338);
-        return ++vertexPos;
+    }
+
+    private int block(Block b, int ix, int iy, int iz, int vertexPos, boolean draw) {
+        /*
+         * 0 top    y+1
+         * 1 bottom y-1
+         * 2 left   x-1
+         * 3 right  x+1
+         * 4 front  z-1
+         * 5 back   z+1
+         */
+        boolean checked = b.adjecentOpaquesCalculated;
+        for(int i=0;i<6;i++) {
+            if(!faceIsHidden(b,ix,iy,iz,i, checked)){
+                if(draw){
+                    indexB.put(vertexPos + 0).put(vertexPos + 1).put(vertexPos + 2);
+                    indexB.put(vertexPos + 0).put(vertexPos + 2).put(vertexPos + 3);
+                    vertexPos = side(b, ix, iy, iz, i, vertexPos);
+                } else {
+                    vertexPos+=1;
+                }
+            }
+        }
+        if(!checked) b.adjecentOpaquesCalculated=true;
+        return vertexPos;
+    }
+    
+    private boolean faceIsHidden(Block b, int ix, int iy, int iz, int side, boolean uptodate){
+        if(uptodate) return b.adjecentOpaques[side];
+        boolean h=false;
+        if (side == 0) { //top
+            h = hasOpaqueBlock(ix, iy + 1, iz);
+        } else if (side == 1) { //bot
+            h = hasOpaqueBlock(ix, iy - 1, iz);
+        } else if (side == 2) { //left
+            h = hasOpaqueBlock(ix - 1, iy, iz);
+        } else if (side == 3) { //right
+            h = hasOpaqueBlock(ix + 1, iy, iz);
+        } else if (side == 4) { //front
+            h = hasOpaqueBlock(ix, iy, iz + 1);
+        } else if (side == 5) { //back
+            h = hasOpaqueBlock(ix, iy, iz - 1);
+        }
+        b.adjecentOpaques[side]=h;
+        return h;
+    }
+    
+    private boolean hasOpaqueBlock(int ix, int iy, int iz) {
+        
+        if (ix >= csl || ix < 0 || iy >= csl || iy < 0 || iz >= csl || iz < 0) {
+            return false;
+            //TODO check adjecent octree
+        }
+        Block b = blocks[ix + iy * Chunklet.csl + iz * Chunklet.csl2];
+        if (b == null) {
+            return false;
+        }
+        if (b.isOpaque) {
+            return true;
+        }
+        return false;
     }
     
 }
