@@ -10,6 +10,7 @@ import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.util.LinkedList;
 import java.util.concurrent.ConcurrentLinkedDeque;
+import javax.swing.JOptionPane;
 import net.q1cc.cfs.mmm.client.Client;
 import net.q1cc.cfs.mmm.common.math.Quaternionf;
 import net.q1cc.cfs.mmm.common.math.Vec3d;
@@ -61,14 +62,12 @@ public class MainGLRender extends Thread {
     
     int basicShader;
     int attPos;
-    int attLight;
-    int attOrient;
+    int attTex;
+    //int attOrient;
     int attColor;
-    int attBlock;
+    //int attBlock;
     
     int uniBlockTex;
-    int uniTexRows;
-    int uniTexCols;
     int uniProjMat;
     int uniPosChunkMat;
     
@@ -165,16 +164,14 @@ public class MainGLRender extends Thread {
         checkGLError();
         
         attPos = glGetAttribLocation(basicShader, "inPos");
-        attLight = glGetAttribLocation(basicShader, "inLight");
-        attOrient = glGetAttribLocation(basicShader, "inOrient");
+        attTex = glGetAttribLocation(basicShader, "inTex");
+        //attOrient = glGetAttribLocation(basicShader, "inOrient");
         attColor = glGetAttribLocation(basicShader, "inColor");
-        attBlock = glGetAttribLocation(basicShader, "inBlock");
+        //attBlock = glGetAttribLocation(basicShader, "inBlock");
         
         uniPosChunkMat = glGetUniformLocation(basicShader, "posChunkMat");
         uniProjMat = glGetUniformLocation(basicShader, "projMat");
         uniBlockTex = glGetUniformLocation(basicShader, "blockTex");
-        uniTexRows = glGetUniformLocation(basicShader, "texRows");
-        uniTexCols = glGetUniformLocation(basicShader, "texCols");
     }
     private static String[] readString(InputStream in) throws IOException {
         BufferedReader i = new BufferedReader(new InputStreamReader(in));
@@ -290,8 +287,6 @@ public class MainGLRender extends Thread {
         glActiveTexture(GL_TEXTURE0);
         blockTexture.bind();
         glUniform1i(uniBlockTex,0);
-        glUniform1i(uniTexRows,6);
-        glUniform1i(uniTexCols,6);
         
         //TODO all the render methods here
         chunkletsRendered=0;
@@ -375,8 +370,7 @@ public class MainGLRender extends Thread {
     }
 
     private void initGL() {
-        //glEnable(GL_TEXTURE_2D); // Enable Texture Mapping
-        //glShadeModel(GL_SMOOTH); // Enable Smooth Shading
+        glEnable(GL_TEXTURE_2D); // Enable Texture Mapping
         glClearColor(0.2f, 0.3f, 0.7f, 0.0f); // Black Background
         glClearDepth(1.0); // Depth Buffer Setup
         glEnable(GL_DEPTH_TEST); // Enables Depth Testing
@@ -390,8 +384,6 @@ public class MainGLRender extends Thread {
         loadTextures();
         setupProjection();
         
-        // Really Nice Perspective Calculations
-        //glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
     }
     
     private static void cleanup() {
@@ -473,15 +465,11 @@ public class MainGLRender extends Thread {
         glBufferData(GL_ELEMENT_ARRAY_BUFFER,cl.indexB,GL_STATIC_DRAW);
         checkGLError();
         glEnableVertexAttribArray(attPos);
-        glEnableVertexAttribArray(attLight);
-        glEnableVertexAttribArray(attOrient);
         glEnableVertexAttribArray(attColor);
-        glEnableVertexAttribArray(attBlock);
+        glEnableVertexAttribArray(attTex);
         glVertexAttribPointer(attPos, 3, GL_FLOAT, false, 4*8, 4*0);
-        glVertexAttribPointer(attLight, 1, GL_FLOAT, false, 4*8, 4*3);
-        glVertexAttribPointer(attOrient, 1, GL_INT, false, 4*8, 4*4);
-        glVertexAttribPointer(attColor, 1, GL_INT, false, 4*8, 4*5);
-        glVertexAttribPointer(attBlock, 1, GL_INT, false, 4*8, 4*6);
+        glVertexAttribPointer(attTex, 2, GL_FLOAT, false, 4*8, 4*3);
+        glVertexAttribPointer(attColor, 4, GL_UNSIGNED_BYTE, false, 4*8, 4*5);
 
         checkGLError();
         glBindVertexArray(0);
@@ -505,22 +493,8 @@ public class MainGLRender extends Thread {
                 
                 //render this
                 glBindVertexArray(g.vaoID);
-                glBindBuffer(GL_ARRAY_BUFFER, g.vboID);
-                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g.iboID);
-                glEnableVertexAttribArray(attPos);
-                glEnableVertexAttribArray(attLight);
-                glEnableVertexAttribArray(attOrient);
-                glEnableVertexAttribArray(attColor);
-                glEnableVertexAttribArray(attBlock);
-                glVertexAttribPointer(attPos, 3, GL_FLOAT, false, 4*8, 4*0);
-                glVertexAttribPointer(attLight, 1, GL_FLOAT, false, 4*8, 4*3);
-                glVertexAttribPointer(attOrient, 1, GL_INT, false, 4*8, 4*4);
-                glVertexAttribPointer(attColor, 1, GL_INT, false, 4*8, 4*5);
-                glVertexAttribPointer(attBlock, 1, GL_INT, false, 4*8, 4*6);
                 glDrawElements(GL_TRIANGLES, g.indCount, GL_UNSIGNED_INT, 0);
                 glBindVertexArray(0);
-                //glBindBuffer(GL_ARRAY_BUFFER, 0);
-                //glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,0);
                 chunkletsRendered++;
             }
         }
@@ -591,15 +565,20 @@ public class MainGLRender extends Thread {
     private void loadTextures() {
         texL= new TextureLoader();
         try {
-            Texture b = texL.getTexture("/png/blocks.png", GL_TEXTURE_2D,GL_RGBA,GL_LINEAR,GL_NEAREST);
+            glActiveTexture(GL_TEXTURE0);
+            Texture b = texL.getTexture("/png/blocks.png", GL_TEXTURE_2D,GL_RGB,GL_LINEAR,GL_NEAREST);
+            checkGLError();
+            //JOptionPane.showMessageDialog(Display.getParent(),"Texture loaded:"+b );
             if(b==null){
                 System.out.println("error: texture could not be loaded.");
+                JOptionPane.showMessageDialog(Display.getParent(),"texture not found");
             } else {
                 
                 blockTexture=b;
             }
         } catch (IOException ex) {
             ex.printStackTrace();
+            JOptionPane.showMessageDialog(Display.getParent(),ex);
         }
     }
     

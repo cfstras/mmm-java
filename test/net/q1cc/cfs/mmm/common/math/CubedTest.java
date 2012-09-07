@@ -14,6 +14,10 @@ public class CubedTest {
         Cubed cube = new Cubed(Vec3d.NULL,20);
         System.out.println(cube.intersects(new Vec3d(0.0f,0.5f,1.0f)));
         
+        System.out.println("1>>1 = "+ (1>>1));
+        System.out.println("2>>1 = "+ (2>>1));
+        System.out.println("1<<1 = "+ (1<<1));
+        System.out.println("2<<1 = "+ (2<<1));
         //System.out.println(Cubed.);
         
     }

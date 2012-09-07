@@ -43,6 +43,7 @@ import java.awt.image.DataBuffer;
 import java.awt.image.DataBufferByte;
 import java.awt.image.Raster;
 import java.awt.image.WritableRaster;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
@@ -193,7 +194,7 @@ public class TextureLoader {
                       srcPixelFormat,
                       GL_UNSIGNED_BYTE,
                       textureBuffer );
-
+        
         return texture;
     }
 
@@ -274,21 +275,29 @@ public class TextureLoader {
      * @throws IOException Indicates a failure to find a resource
      */
     private BufferedImage loadImage(String ref) throws IOException {
-        InputStream url = TextureLoader.class.getResourceAsStream(ref);
+        InputStream is = TextureLoader.class.getResourceAsStream(ref);
 
-        if (url == null) {
+        if (is == null) {
             throw new IOException("Cannot find: " + ref);
         }
-
+        
+        ByteArrayOutputStream bos = new ByteArrayOutputStream(is.available());
+        byte[] buf = new byte[1024];
+        int read;
+        while((read = is.read(buf))!=-1){
+            bos.write(buf, 0, read);
+        }
+        
         // due to an issue with ImageIO and mixed signed code
         // we are now using good oldfashioned ImageIcon to load
         // images and the paint it on top of a new BufferedImage
-        //Image img = new ImageIcon(url).getImage();
-        BufferedImage bufferedImage = ImageIO.read(url);
-        //BufferedImage bufferedImage = new BufferedImage(img.getWidth(null), img.getHeight(null), BufferedImage.TYPE_INT_RGB);
-        //Graphics g = bufferedImage.getGraphics();
-        //g.drawImage(img, 0, 0, null);
-        //g.dispose();
+        Image img = new ImageIcon(bos.toByteArray()).getImage();
+        //BufferedImage bufferedImage = ImageIO.read(url);
+        
+        BufferedImage bufferedImage = new BufferedImage(img.getWidth(null), img.getHeight(null), BufferedImage.TYPE_INT_RGB);
+        Graphics g = bufferedImage.getGraphics();
+        g.drawImage(img, 0, 0, null);
+        g.dispose();
 
         return bufferedImage;
     }

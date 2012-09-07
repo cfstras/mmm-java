@@ -75,10 +75,10 @@ public class World implements Serializable{
         //TODO convert this to workers
         worldGenerator.generate(generateOctree,null, WorldOctree.highestSubtreeLvl); //just some sublevels for now, to be inaccurate.
         
-        this.spawnPoint=worldGenerator.spawnPoint(); //generate first, because spawnPoint sets a torch
+        this.spawnPoint=worldGenerator.spawnPoint(); //call now, because spawnPoint sets a torch
         player=new Player();
         
-        player.position=new Vec3f(spawnPoint.add(Vec3d.UP.mult(2f)));
+        player.position=new Vec3f(spawnPoint);
         
         if(changedOctree==null){
             initChangedOctree();

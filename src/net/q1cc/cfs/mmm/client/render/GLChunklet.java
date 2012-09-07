@@ -15,6 +15,8 @@ import net.q1cc.cfs.mmm.common.world.WorldOctree;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.MemoryUtil;
 import org.lwjgl.Sys;
+import org.lwjgl.util.Color;
+import org.lwjgl.util.ReadableColor;
 
 /**
  * The GL Extension of a chunklet, able to store VBO IDs and such.
@@ -23,6 +25,10 @@ import org.lwjgl.Sys;
  * @author cfstras
  */
 public class GLChunklet extends Chunklet implements WorkerTask {
+    
+    public static int texture_block_size = 16;
+    public static int texture_block_rows = 8;
+    public static int texture_block_cols = 8;
     
     /**
      * The VBO ID for this chunklet, if it is in VRAM.
@@ -146,32 +152,11 @@ public class GLChunklet extends Chunklet implements WorkerTask {
                     b = blocks[ix + iy*Chunklet.csl + iz*Chunklet.csl2];
                     if(b!=null){
                         // the indices
-                        
-                        //front
-                        vertexPos = side(b,ix,iy,iz,true,false,false,true,vertexPos);
-                        indexB.put(vertexPos-3).put(vertexPos-4).put(vertexPos-2);
-                        indexB.put(vertexPos-1).put(vertexPos-3).put(vertexPos-2);
-                        //right
-                        vertexPos = side(b,ix+1,iy,iz,false,true,false,false,vertexPos);
-                        indexB.put(vertexPos-4).put(vertexPos-3).put(vertexPos-2);
-                        indexB.put(vertexPos-3).put(vertexPos-1).put(vertexPos-2);
-                        //left
-                        vertexPos = side(b,ix,iy,iz,true,true,false,false,vertexPos);
-                        indexB.put(vertexPos-3).put(vertexPos-4).put(vertexPos-2);
-                        indexB.put(vertexPos-1).put(vertexPos-3).put(vertexPos-2);
-                        //top
-                        vertexPos = side(b,ix,iy+1,iz,false,false,true,false,vertexPos);
-                        indexB.put(vertexPos-3).put(vertexPos-4).put(vertexPos-2);
-                        indexB.put(vertexPos-1).put(vertexPos-3).put(vertexPos-2);
-                        //back
-                        vertexPos = side(b,ix,iy,iz-1,false,false,false,true,vertexPos);
-                        indexB.put(vertexPos-4).put(vertexPos-3).put(vertexPos-2);
-                        indexB.put(vertexPos-3).put(vertexPos-1).put(vertexPos-2);
-                        //bottom
-                        vertexPos = side(b,ix,iy,iz,true,false,true,false,vertexPos);
-                        indexB.put(vertexPos-4).put(vertexPos-3).put(vertexPos-2);
-                        indexB.put(vertexPos-3).put(vertexPos-1).put(vertexPos-2);
-                        
+                        for(int i=0;i<6;i++) {
+                            indexB.put(vertexPos+0).put(vertexPos+1).put(vertexPos+2);
+                            indexB.put(vertexPos+0).put(vertexPos+2).put(vertexPos+3);
+                            vertexPos = side(b,ix,iy,iz,i,vertexPos);
+                        }
                     } //if b!=null
                     
                 }// three
@@ -196,7 +181,6 @@ public class GLChunklet extends Chunklet implements WorkerTask {
     public synchronized boolean doWork() {
         if(!built){
             buildChunklet(null, null);
-            
             return true;
         } else {
             System.out.println("I was called without reason, master.");
@@ -209,70 +193,84 @@ public class GLChunklet extends Chunklet implements WorkerTask {
         return WorkerTask.PRIORITY_NORM;
     }
 
-    private int side(Block bl, int ix, int iy, int iz,
-            boolean bm, boolean bx, boolean by, boolean bz, int vertexPos) {
-        int dx = 0, dy = 0, dz = 0;
-        if (!bx) {
-            dx = 1;
+    private int side(Block bl, int ix, int iy, int iz, int side, int vertexPos) {
+        if(side==0) {//top
+            vertexB.put(ix).put(iy+1).put(iz+1);
+            vertexPos = vert(0,1,side,bl,vertexPos);
+            vertexB.put(ix+1).put(iy+1).put(iz+1);
+            vertexPos = vert(1,1,side,bl,vertexPos);
+            vertexB.put(ix+1).put(iy+1).put(iz);
+            vertexPos = vert(1,0,side,bl,vertexPos);
+            vertexB.put(ix).put(iy+1).put(iz);
+            vertexPos = vert(0,0,side,bl,vertexPos);
+        } else if(side==1) {//bot
+            vertexB.put(ix).put(iy).put(iz);
+            vertexPos = vert(0,1,side,bl,vertexPos);
+            vertexB.put(ix+1).put(iy).put(iz);
+            vertexPos = vert(1,1,side,bl,vertexPos);
+            vertexB.put(ix+1).put(iy).put(iz+1);
+            vertexPos = vert(1,0,side,bl,vertexPos);
+            vertexB.put(ix).put(iy).put(iz+1);
+            vertexPos = vert(0,0,side,bl,vertexPos);
+        } else if(side==2) {//left
+            vertexB.put(ix).put(iy).put(iz);
+            vertexPos = vert(0,1,side,bl,vertexPos);
+            vertexB.put(ix).put(iy).put(iz+1);
+            vertexPos = vert(1,1,side,bl,vertexPos);
+            vertexB.put(ix).put(iy+1).put(iz+1);
+            vertexPos = vert(1,0,side,bl,vertexPos);
+            vertexB.put(ix).put(iy+1).put(iz);
+            vertexPos = vert(0,0,side,bl,vertexPos);
+        } else if(side==3) {//right
+            vertexB.put(ix+1).put(iy).put(iz+1);
+            vertexPos = vert(0,1,side,bl,vertexPos);
+            vertexB.put(ix+1).put(iy).put(iz);
+            vertexPos = vert(1,1,side,bl,vertexPos);
+            vertexB.put(ix+1).put(iy+1).put(iz);
+            vertexPos = vert(1,0,side,bl,vertexPos);
+            vertexB.put(ix+1).put(iy+1).put(iz+1);
+            vertexPos = vert(0,0,side,bl,vertexPos);
+        } else if(side==4) {//front
+            vertexB.put(ix).put(iy).put(iz+1);
+            vertexPos = vert(0,1,side,bl,vertexPos);
+            vertexB.put(ix+1).put(iy).put(iz+1);
+            vertexPos = vert(1,1,side,bl,vertexPos);
+            vertexB.put(ix+1).put(iy+1).put(iz+1);
+            vertexPos = vert(1,0,side,bl,vertexPos);
+            vertexB.put(ix).put(iy+1).put(iz+1);
+            vertexPos = vert(0,0,side,bl,vertexPos);
+        } else if(side==5) {//back
+            vertexB.put(ix+1).put(iy).put(iz);
+            vertexPos = vert(0,1,side,bl,vertexPos);
+            vertexB.put(ix).put(iy).put(iz);
+            vertexPos = vert(1,1,side,bl,vertexPos);
+            vertexB.put(ix).put(iy+1).put(iz);
+            vertexPos = vert(1,0,side,bl,vertexPos);
+            vertexB.put(ix+1).put(iy+1).put(iz);
+            vertexPos = vert(0,0,side,bl,vertexPos);
         }
-        if (!by) {
-            dy = 1;
-        }
-        if (!bz) {
-            dz = -1;
-        }
-        if (bm) {
-            //dx *= -1;
-            //dy *= -1;
-            //dz *= -1;
-        }
-        for(int a=0;a<2;a++){
-            for(int b=0;b<2;b++){
-                if(dz==0){ 
-                    vertexB.put(ix + a*dx);
-                    vertexB.put(iy + b*dy);
-                    vertexB.put(iz);
-                } else if(dy==0){
-                    vertexB.put(ix + a*dx);
-                    vertexB.put(iy);
-                    vertexB.put(iz + b*dz);
-                } else if(dx==0) {
-                    vertexB.put(ix);
-                    vertexB.put(iy + a*dy);
-                    vertexB.put(iz + b*dz);
-                } else {
-                    System.out.println("wtf");
-                }
-                
-                vertexB.put(bl.lightLevel);
-                //orientation
-                int orientation = 0;
-                orientation += (bx ? 1 : 0) * 1;
-                orientation += (by ? 1 : 0) * 2;
-                orientation += (bz ? 1 : 0) * 4;
-                orientation += (bm ? 1 : 0) * 8;
-                //texture coordinates
-                orientation += (a==1? 1:0) * 16;
-                orientation += (b==1? 1:0) * 32;
-                vertexIB.position(vertexB.position());
-                vertexIB.put(orientation);
-                //Color
-                int col=0;
-                col |= bl.color.getRed()   << 3*8;
-                col |= bl.color.getGreen() << 2*8;
-                col |= bl.color.getBlue()  << 1*8;
-                col |= bl.color.getAlpha();
-                vertexIB.put(col);
-                vertexIB.put(bl.blockID);
-                vertexB.position(vertexIB.position());
-                vertexB.put(1337);
-                vertexPos++;
-            }
-        }
-        
         
         return vertexPos;
     }
     
+    int vert(int u, int v, int side,
+            Block bl, int vertexPos){
+        
+        vertexB.put((float)(u)/texture_block_cols+(float)(side)/texture_block_cols)
+                .put((float)(v)/texture_block_rows+(float)(bl.blockID)/texture_block_rows);
+        vertexIB.position(vertexB.position());
+        //Color
+        ReadableColor c = bl.color;
+        if(side!=0)c = Color.WHITE;
+        int col = 0;
+        col |= c.getAlpha() << (3 * 8); //a
+        col |= c.getBlue() << (2 * 8); //b
+        col |= c.getGreen() << (1 * 8); //g
+        col |= c.getRed() << (0 * 8); //r
+        vertexIB.put(col);
+        vertexB.position(vertexIB.position());
+        vertexB.put(1337).put(1338);
+        return ++vertexPos;
+    }
     
 }
