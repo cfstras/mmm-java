@@ -61,6 +61,7 @@ public class Block implements Cloneable, Serializable{
      * 5: back
      */
     public boolean[] adjecentOpaques;
+    
     /**
      * tells if the adjecentOpaques array is up-to-date
      */
@@ -86,6 +87,10 @@ public class Block implements Cloneable, Serializable{
             newB = (Block)super.clone();
         } catch (CloneNotSupportedException ex) {
             ex.printStackTrace();
+        }
+        newB.adjecentOpaques = new boolean[6];
+        for(int i=0;i<6;i++){
+            newB.adjecentOpaques[i]=adjecentOpaques[i];
         }
         //reset unique values like IDs etc.
         return newB;

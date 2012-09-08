@@ -47,11 +47,11 @@ public class EarthGenerator extends WorldGenerator{
             for (int y = 0; y < Chunklet.csl; y++) {
                 for (int z = 0; z < Chunklet.csl; z++) {
                     if((c.parent.height + y)==5) {
-                        c.blocks[x + Chunklet.csl * y + Chunklet.csl2 * z] = StaticBlock.GRASS;
+                        c.blocks[x + Chunklet.csl * y + Chunklet.csl2 * z] = StaticBlock.GRASS.clone();
                     } else if (c.parent.height + y >= -5 && c.parent.height + y < 5) {
-                        c.blocks[x + Chunklet.csl * y + Chunklet.csl2 * z] = StaticBlock.DIRT;
+                        c.blocks[x + Chunklet.csl * y + Chunklet.csl2 * z] = StaticBlock.DIRT.clone();
                     } else if (c.parent.height + y < -5 && c.parent.height + y > -100) {
-                        c.blocks[x + Chunklet.csl * y + Chunklet.csl2 * z] = StaticBlock.STONE;
+                        c.blocks[x + Chunklet.csl * y + Chunklet.csl2 * z] = StaticBlock.STONE.clone();
                     }
 
                 }

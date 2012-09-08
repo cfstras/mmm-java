@@ -50,11 +50,11 @@ public class Chunklet implements Serializable {
     }
     
     public static int getBlockIndex(float x, float y,float z) {
-        int posX = (int)Math.floor(x/csl);
-        int posY = (int)Math.floor(y/csl);
-        int posZ = (int)Math.floor(z/csl);
+        int pX = (int)(x+csl)%csl;
+        int pY = (int)(y+csl)%csl;
+        int pZ = (int)(z+csl)%csl;
         
-        return posX + posY *csl + posZ*csl2;
+        return pX + pY *csl + pZ*csl2;
     }
     public static int getBlockIndex(Vec3f pos) {
         return getBlockIndex(pos.x,pos.y,pos.z);

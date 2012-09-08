@@ -78,7 +78,7 @@ public class World implements Serializable{
         this.spawnPoint=worldGenerator.spawnPoint(); //call now, because spawnPoint sets a torch
         player=new Player();
         
-        player.position=new Vec3f(spawnPoint);
+        player.position=new Vec3f(spawnPoint.add(Vec3d.UP.mult(2)));
         
         if(changedOctree==null){
             initChangedOctree();

@@ -76,7 +76,7 @@ abstract public class WorldGenerator {
         if(w.block==null){
             w.block = new Chunklet((int)w.position.x, (int)w.position.y, (int)w.position.z, w);
         }
-        w.block.blocks[Chunklet.getBlockIndex(sp)] = StaticBlock.TORCH;
+        w.block.blocks[Chunklet.getBlockIndex(sp)] = StaticBlock.TORCH.clone();
         System.out.println("spawnpoint: "+sp);
         System.out.println("spawnTree: "+w);
         

@@ -98,7 +98,6 @@ public class GLChunklet extends Chunklet implements WorkerTask {
         //build chunk
         
         //first pass: check for hidden faces and count blocks
-        // needed:    float perVertex
         int vertexSize = 8;
         int indexSize = 1;
         int vertices = 0;
@@ -111,16 +110,18 @@ public class GLChunklet extends Chunklet implements WorkerTask {
                 for(int iz=0; iz<Chunklet.csl; iz++) {
                     b = blocks[ix + iy*Chunklet.csl + iz*Chunklet.csl2];
                     if(b!=null){
+                        b.adjecentOpaquesCalculated=false;
                         blocksInside++;
                         vertexPos = block(b,ix,iy,iz,vertexPos,false);
                     }
                 }
             }
         }
-        vertices += 4 * vertexPos;
-        indices += 2*3 * vertexPos;
+        vertices = 4 * vertexPos/4;
+        indices = 6 * vertexPos/4;
         if(blocksInside==0 || indices == 0) {
             built=true;
+            //System.out.println("empty/invisible chunklet");
             return;
         }
         
@@ -160,6 +161,9 @@ public class GLChunklet extends Chunklet implements WorkerTask {
         }//         forloops
 
         //done.
+        if(vertices != vertexPos){
+            System.out.println("vertices: "+vertices+ " vertexPos:"+vertexPos+ " indices: "+indices);
+        }
         indCount = indices;
         vertexB.flip();
         indexB.flip();
@@ -276,24 +280,31 @@ public class GLChunklet extends Chunklet implements WorkerTask {
          * 4 front  z-1
          * 5 back   z+1
          */
-        boolean checked = b.adjecentOpaquesCalculated;
+        boolean uptodate = b.adjecentOpaquesCalculated;
+        if (!draw) {
+            uptodate = false;
+        }
         for(int i=0;i<6;i++) {
-            if(!faceIsHidden(b,ix,iy,iz,i, checked)){
+            if(!faceIsHidden(b,ix,iy,iz,i, uptodate)){
                 if(draw){
                     indexB.put(vertexPos + 0).put(vertexPos + 1).put(vertexPos + 2);
                     indexB.put(vertexPos + 0).put(vertexPos + 2).put(vertexPos + 3);
                     vertexPos = side(b, ix, iy, iz, i, vertexPos);
                 } else {
-                    vertexPos+=1;
+                    vertexPos+=4; //reserve space
                 }
             }
         }
-        if(!checked) b.adjecentOpaquesCalculated=true;
+        if (!uptodate) {
+            b.adjecentOpaquesCalculated = true;
+        }
         return vertexPos;
     }
     
     private boolean faceIsHidden(Block b, int ix, int iy, int iz, int side, boolean uptodate){
-        if(uptodate) return b.adjecentOpaques[side];
+        if (b.adjecentOpaquesCalculated) {
+            return b.adjecentOpaques[side];
+        }
         boolean h=false;
         if (side == 0) { //top
             h = hasOpaqueBlock(ix, iy + 1, iz);
@@ -307,6 +318,8 @@ public class GLChunklet extends Chunklet implements WorkerTask {
             h = hasOpaqueBlock(ix, iy, iz + 1);
         } else if (side == 5) { //back
             h = hasOpaqueBlock(ix, iy, iz - 1);
+        } else {
+            System.out.println("wtf");
         }
         b.adjecentOpaques[side]=h;
         return h;

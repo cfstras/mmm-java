@@ -419,11 +419,11 @@ public class MainGLRender extends Thread {
         deltaTime = (time - lastFrame)/1000f;
         lastFrame = time;
         
-        if (time - lastFPS > 5000) {
+        if (time - lastFPS > 1000) {
             Display.setTitle(windowTitle+ " FPS: " + fps +" deltaT: "+deltaTime+
                     " rot: "+player.rotation+ " c: "+chunkletsRendered);
             fps = 0; //reset the FPS counter
-            lastFPS += 5000; //add one second
+            lastFPS += 1000; //add one second
         }
         fps++;
     }
