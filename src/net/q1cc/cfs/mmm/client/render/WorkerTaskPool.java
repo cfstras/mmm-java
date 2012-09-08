@@ -14,11 +14,13 @@ import java.util.LinkedList;
  */
 public class WorkerTaskPool {
     
+    //TODO replace with priority queue
     ArrayList<WorkerTask> tasks = new ArrayList<WorkerTask>();
     
     Worker[] workers;
     boolean workersIdle=true;
     boolean workerIdle=true;
+    private boolean shutdown=false;
     
     private final Object lock = new Object();
     
@@ -34,30 +36,62 @@ public class WorkerTaskPool {
         }
     }
     
-    public synchronized void add(WorkerTask task){
+    /**
+     * Waits for all jobs to be finished.
+     * could take forever.
+     */
+    public boolean finishWorkers() {
+        shutdown=true;
+        if(!tasks.isEmpty()){
+            synchronized(this){
+                try {
+                    wait();
+                } catch (InterruptedException ex) {}
+            }
+        }
+        for(Worker w:workers){
+            w.live=false;
+        }
+        for(Worker w:workers){
+            try {
+                w.join();
+            } catch (InterruptedException ex) {}
+        }
+        return false;
+    }
+    
+    public boolean add(WorkerTask task){
+        if(shutdown){
+            return false;
+        }
         synchronized(lock){
             tasks.add(task);
-        }
-        
-        /// wake them up
-        workersIdle = false;
-        if(workerIdle){
-            workerIdle=false;
-            for (int i = 0; i < workers.length; i++) {
-                synchronized (workers[i]) {
-                    workers[i].notifyAll();
-                    workers[i].wasIdle=false;
+            /// wake them up
+            workersIdle = false;
+            if(workerIdle){
+                workerIdle=false;
+                for (int i = 0; i < workers.length; i++) {
+                    synchronized (workers[i]) {
+                        workers[i].notifyAll();
+                        workers[i].wasIdle=false;
+                    }
                 }
             }
         }
+        return true;
     }
     
-    public synchronized WorkerTask pop(){
+    public WorkerTask pop(){
         WorkerTask ret;
         synchronized(lock){
             if(tasks.size()<1) {
                 workersIdle=true;
                 workerIdle=true;
+                if(shutdown){
+                    synchronized(this){
+                        this.notifyAll();
+                    }
+                }
                 return null;
             }
             ret=tasks.get(0);

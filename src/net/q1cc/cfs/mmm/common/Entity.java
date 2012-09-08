@@ -4,9 +4,11 @@
  */
 package net.q1cc.cfs.mmm.common;
 
+import net.q1cc.cfs.mmm.client.Client;
 import net.q1cc.cfs.mmm.common.math.Quaternionf;
 import net.q1cc.cfs.mmm.common.math.Vec3d;
 import net.q1cc.cfs.mmm.common.math.Vec3f;
+import net.q1cc.cfs.mmm.common.world.WorldOctree;
 import org.lwjgl.util.vector.Vector3f;
 
 /**
@@ -33,6 +35,7 @@ abstract public class Entity {
     EntityType type;
     String name;
     
+    WorldOctree myLastOctree;
     
     boolean hasGravity=false;
     
@@ -52,20 +55,22 @@ abstract public class Entity {
      */
     public boolean translate(Vec3f xyz) {
         Vec3f newPos=position.add(xyz);
-        
-        //doPhysics()
-        //TODO implement physics
-        position=newPos;
+        Vec3f colPoint = Physics.getCollision(this,xyz);
+        if(colPoint==null){
+            position = newPos;
+        } else {
+            position = colPoint;
+            //TODO damage.
+        }
         return true;
     }
     
     /**
-     * takes my rotation into account and moves forward
+     * ignores my rotation and moves forward
      * @param xyz
      * @return 
      */
     public boolean move(Vec3f xyz) {
-        //TODO rotation matrix
         return translate(xyz);
     }
             

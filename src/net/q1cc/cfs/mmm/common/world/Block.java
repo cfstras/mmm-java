@@ -67,6 +67,48 @@ public class Block implements Cloneable, Serializable{
      */
     public boolean adjecentOpaquesCalculated;
     
+    //static info
+    public static final String blockName[] = {
+/*  0*/ "Stone",
+/*  1*/ "Dirt",
+/*  2*/ "Grass",
+/*  3*/ "Torch",
+/*  4*/
+/*  5*/
+/*  6*/
+/*  7*/
+/*  8*/
+/*  9*/
+/* 10*/
+/* 11*/
+/* 12*/
+/* 13*/
+/* 14*/
+/* 15*/
+/* 16*/
+    };
+    
+    //for physics.
+    public static final float blockHeight[] = {
+/*  0*/ 1,
+/*  1*/ 1,
+/*  2*/ 1,
+/*  3*/ 0,
+/*  4*/
+/*  5*/
+/*  6*/
+/*  7*/
+/*  8*/
+/*  9*/
+/* 10*/
+/* 11*/
+/* 12*/
+/* 13*/
+/* 14*/
+/* 15*/
+/* 16*/
+    };
+
     public Block(boolean isSolid,
     float brightness,
     Color color,

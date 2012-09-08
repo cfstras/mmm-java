@@ -110,7 +110,6 @@ public class GLChunklet extends Chunklet implements WorkerTask {
                 for(int iz=0; iz<Chunklet.csl; iz++) {
                     b = blocks[ix + iy*Chunklet.csl + iz*Chunklet.csl2];
                     if(b!=null){
-                        b.adjecentOpaquesCalculated=false;
                         blocksInside++;
                         vertexPos = block(b,ix,iy,iz,vertexPos,false);
                     }

@@ -98,7 +98,6 @@ public class MainGLRender extends Thread {
                     setupProjection();
                 }
                 render();
-                checkGLError();
                 Display.update();
                 updateFPSandDelta();
                 Display.sync(60);
@@ -144,17 +143,14 @@ public class MainGLRender extends Thread {
         glShaderSource(vertShader, vertSource);
         glCompileShader(vertShader);
         System.out.println("Vertex Shader: "+glGetShaderInfoLog(vertShader, 512));
-        checkGLError();
         glShaderSource(fragShader, fragSource);
         glCompileShader(fragShader);
         System.out.println("Fragment Shader: "+glGetShaderInfoLog(fragShader, 512));
-        checkGLError();
         
         glAttachShader(basicShader, vertShader);
         glAttachShader(basicShader, fragShader);
         glLinkProgram(basicShader);
         System.out.println("Shader Link : "+glGetProgramInfoLog(basicShader, 512));
-        checkGLError();
         
         attPos = glGetAttribLocation(basicShader, "inPos");
         attTex = glGetAttribLocation(basicShader, "inTex");
@@ -277,7 +273,7 @@ public class MainGLRender extends Thread {
         glUniformMatrix4(uniProjMat,false,projMatB);
         glUniformMatrix4(uniPosChunkMat,false,posChunkMatB);
         
-        glActiveTexture(GL_TEXTURE0);
+        //glActiveTexture(GL_TEXTURE0);
         blockTexture.bind();
         glUniform1i(uniBlockTex,0);
         
@@ -370,7 +366,7 @@ public class MainGLRender extends Thread {
         glDepthFunc(GL_LEQUAL); // The Type Of Depth Testing To Do
         
         
-        //glEnable(GL_CULL_FACE);
+        glEnable(GL_CULL_FACE);
         glFrontFace(GL_CCW);
         
         loadShaders();
@@ -379,11 +375,14 @@ public class MainGLRender extends Thread {
         
     }
     
-    private static void cleanup() {
-        Display.destroy();
+    private void cleanup() {
+        System.out.println("cleaning up...");
+        //TODO delete all chunklets from memory
         
-        //TODO kill worker threads
-    }
+        Display.destroy();
+        taskPool.finishWorkers();
+        System.out.println("finis.");
+   }
     
     
     /**
@@ -456,15 +455,12 @@ public class MainGLRender extends Thread {
         glBufferData(GL_ARRAY_BUFFER, cl.vertexB, GL_STATIC_DRAW);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,iboID);
         glBufferData(GL_ELEMENT_ARRAY_BUFFER,cl.indexB,GL_STATIC_DRAW);
-        checkGLError();
         glEnableVertexAttribArray(attPos);
         glEnableVertexAttribArray(attColor);
         glEnableVertexAttribArray(attTex);
         glVertexAttribPointer(attPos, 3, GL_FLOAT, false, 4*8, 4*0);
         glVertexAttribPointer(attTex, 2, GL_FLOAT, false, 4*8, 4*3);
         glVertexAttribPointer(attColor, 4, GL_UNSIGNED_BYTE, false, 4*8, 4*5);
-
-        checkGLError();
         glBindVertexArray(0);
         cl.vboID = vboID;
         cl.vaoID = vaoID;
@@ -487,6 +483,7 @@ public class MainGLRender extends Thread {
                 //render this
                 glBindVertexArray(g.vaoID);
                 glDrawElements(GL_TRIANGLES, g.indCount, GL_UNSIGNED_INT, 0);
+                //TODO if rendering is fine, remove this call (leave it to debug)
                 glBindVertexArray(0);
                 chunkletsRendered++;
             }
@@ -560,7 +557,6 @@ public class MainGLRender extends Thread {
         try {
             glActiveTexture(GL_TEXTURE0);
             Texture b = texL.getTexture("/png/blocks.png", GL_TEXTURE_2D,GL_RGB,GL_LINEAR,GL_NEAREST);
-            checkGLError();
             //JOptionPane.showMessageDialog(Display.getParent(),"Texture loaded:"+b );
             if(b==null){
                 System.out.println("error: texture could not be loaded.");

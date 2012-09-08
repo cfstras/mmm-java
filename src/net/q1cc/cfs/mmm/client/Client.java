@@ -67,13 +67,13 @@ public class Client {
         loadWorld(new File("testworld/"));
         //System.out.println(world.generateOctree.toString(0)); //this takes some time.
         renderer=new MainGLRender(world);
-        renderer.start();
-        try {
-            renderer.join();
-        } catch (InterruptedException ex) {
-            ex.printStackTrace();
-        }
-        System.out.println("exiting");
+        //renderer.start();
+        renderer.run(); //don't waste a thread.
+        //try {
+        //    renderer.join();
+        //} catch (InterruptedException ex) {
+        //    ex.printStackTrace();
+        //}
     }
     
     private void loadWorld(File folder){
