@@ -8,6 +8,7 @@ import java.io.Serializable;
 import java.util.Vector;
 import net.q1cc.cfs.mmm.common.math.Cubed;
 import net.q1cc.cfs.mmm.common.math.Vec3d;
+import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 /**
  * This class represents an Octree that handles blocks.
@@ -66,14 +67,17 @@ public class WorldOctree implements Serializable{
     
     /**
      * Defines the max size of an octree.
-     * currently is set to 6, so maps can be 64m high (but longer/wider because the octrees get tiled.)
+     * the last octree subnode has a 16x16x16 chunklet,
+     * so level 4 gives us 256 sidelength, 1M blocks
+     * could be in ram without problems.
+     * additionally, jit-generating and interval-trees/run-length-encoding
+     * gives us more blocks.
      * 
-     * lvl 10 => 1024x1024x1024 = 1,073 mio blocks.
+     * 1024x1024x1024 = 1,073 mio blocks.
      * 1GB RAM gives us ~4 mio blocks.
-     * let's set it to 6, that makes 1/4 mio. blocks.
-     * note: that's only 64 sidelength...
+     * 
      */
-    static final int highestSubtreeLvl = 2;
+    static final int highestSubtreeLvl = 4;
     
     /**
      * This shows if this subtree has already been generated.
@@ -120,15 +124,16 @@ public class WorldOctree implements Serializable{
      * @param x the x parameter of the subnode bitmask
      * @param y the x parameter of the subnode bitmask
      * @param z the x parameter of the subnode bitmask
+     * @param createNew whether to create a new subnode if it doesn't exist yet.
      * @return 
      */
-    synchronized WorldOctree getSubtree(boolean x,boolean y, boolean z) {
+    synchronized WorldOctree getSubtree(boolean x,boolean y, boolean z, boolean createNew) {
         WorldOctree subtree=null;
         int index=getIndex(x,y,z);
         if(hasSubtrees){
             subtree = subtrees[index];
         }
-        if (subtree == null) {//if it doesn't exist, create new
+        if (subtree == null && createNew) {//if it doesn't exist, create new
             double newheight = height;
             double slh=getSidelength(subtreeLvl - 1);
             Vec3d newpos=new Vec3d(position);
@@ -166,7 +171,7 @@ public class WorldOctree implements Serializable{
         return subtree;
     }
     
-    public WorldOctree getSubtree(int index) {
+    public WorldOctree getSubtree(int index, boolean createNew) {
         boolean x=false,y=false,z=false;
         //it's a bitmask!
         if((index&1)==1)
@@ -176,7 +181,7 @@ public class WorldOctree implements Serializable{
         if((index&4)==4)
             z=true;
         
-        return getSubtree(x, y, z);
+        return getSubtree(x, y, z,createNew);
     }
     
     static long blocksCreated=0;
@@ -221,12 +226,13 @@ public class WorldOctree implements Serializable{
      * 
      * Needs a subtree to start from, if the requested subtree is not available from that one,
      * null is returned.
+     * if the search goes outside the main subtree, null is returned.
      * @param position
      * @param level
      * @param subtree
      * @return 
      */
-    public static WorldOctree getOctreeAt(Vec3d position, int level, WorldOctree subtree) {
+    public static WorldOctree getOctreeAt(Vec3d position, int level, WorldOctree subtree, boolean createNew) {
         boolean search = true;
         if (subtree == null) {
             System.err.println("ERROR: null given for finding subtree @" + position + ",l=" + level);
@@ -259,7 +265,7 @@ public class WorldOctree implements Serializable{
                     if (subtree.position.z + slh > position.z) {
                         z = false;
                     }
-                    subtree = subtree.getSubtree(x, y, z);
+                    subtree = subtree.getSubtree(x, y, z,createNew);
                     if (subtree == null) {
                         System.out.println("getSubtree returned null! wtf?");
                     }
@@ -268,8 +274,8 @@ public class WorldOctree implements Serializable{
                 WorldOctree oldSub=subtree;
                 subtree = subtree.parent;
                 if (subtree == null) {
-                    System.out.println("going higher than mainTree, was "+oldSub+" before, search for "+position+" level "+level);
-                    throw new RuntimeException("block search outside main tree");
+                    //System.out.println("block search outside main tree, was "+oldSub+" before, search for "+position+" level "+level);
+                    return null;
                 }
                 search = true;
                 continue;
@@ -293,22 +299,57 @@ public class WorldOctree implements Serializable{
      * @return 
      */
     public WorldOctree[] getSixSourrounders() {
-        WorldOctree[] surr=new WorldOctree[6];
-        int spID=getSPID();
-        /*if((index&1)==1)
-            x=true;
-        if((index&2)==2)
-            y=true;
-        if((index&4)==4)
-            z=true;*/
-        
-        //-x
-        if((spID&1)==0){ //-x, get +x of parent parent
-            int sppID=parent.getSPID();
-            surr[0]=parent.parent.subtrees[sppID].subtrees[spID|1];
-        } //TODO build recursive getAdjecent
-        
-        return surr;
+        throw new RuntimeException("not implemented.");
+//        WorldOctree[] surr=new WorldOctree[6];
+//        int spID=getSPID();
+//        /*if((index&1)==1)
+//            x=true;
+//        if((index&2)==2)
+//            y=true;
+//        if((index&4)==4)
+//            z=true;*/
+//        
+//        //-x
+//        if((spID&1)==0){ //-x, get +x of parent parent
+//            int sppID=parent.getSPID();
+//            surr[0]=parent.parent.subtrees[sppID].subtrees[spID|1];
+//        } //TODO build recursive getAdjecent
+//        
+//        return surr;
+    }
+    
+    /**
+     * finds and retiurns the node next to this octree on the same level.
+     * return null if there is no node.
+     * sides:
+     * 0 top
+     * 1 bottom
+     * 2 left
+     * 3 right
+     * 4 front
+     * 5 back
+     * @param side
+     * @return 
+     */
+    public WorldOctree getAdjecent(int side){
+        //TODO make a more efficient version of this
+        Vec3d nPos = new Vec3d(position);
+        if (side == 0) { //top
+            nPos.y+=getSidelength(subtreeLvl);
+        } else if (side == 1) { //bot
+            nPos.y-=getSidelength(subtreeLvl);
+        } else if (side == 2) { //left
+            nPos.x-=getSidelength(subtreeLvl);
+        } else if (side == 3) { //right
+            nPos.x+=getSidelength(subtreeLvl);
+        } else if (side == 4) { //front
+            nPos.z+=getSidelength(subtreeLvl);
+        } else if (side == 5) { //back
+            nPos.z-=getSidelength(subtreeLvl);
+        } else {
+            System.out.println("wtf");
+        }
+        return getOctreeAt(nPos, subtreeLvl, this, false);
     }
     
     /**

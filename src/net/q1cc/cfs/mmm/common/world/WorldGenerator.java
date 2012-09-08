@@ -59,12 +59,12 @@ abstract public class WorldGenerator {
     public void generateInto(WorldOctree oc,Block[][][] blox,Vec3d position, int toLevel) {
         generate(oc,blox,0);
         if(toLevel<oc.subtreeLvl) {
-            generateInto(WorldOctree.getOctreeAt(position, oc.subtreeLvl-1, oc),blox,position,toLevel);
+            generateInto(WorldOctree.getOctreeAt(position, oc.subtreeLvl-1, oc,true),blox,position,toLevel);
         }
     }
     
     public Vec3d spawnPoint() {
-        r.setSeed(seed ^ 0x4746353579aa2bL); //some random.org value
+        r.setSeed(seed ^ 0x4846983579aa2bL); //some random.org value
         double maxXZ= (WorldOctree.getSidelength(WorldOctree.highestSubtreeLvl-1));
         
         Vec3d sp=new Vec3d( r.nextDouble()*maxXZ, 5 ,r.nextDouble()*maxXZ );
@@ -72,7 +72,7 @@ abstract public class WorldGenerator {
         //and select another point if this takes too long
         
         //just for show, spawn a torch there.
-        WorldOctree w= WorldOctree.getOctreeAt(sp, 0, world.generateOctree);
+        WorldOctree w= WorldOctree.getOctreeAt(sp, 0, world.generateOctree,true);
         if(w.block==null){
             w.block = new Chunklet((int)w.position.x, (int)w.position.y, (int)w.position.z, w);
         }

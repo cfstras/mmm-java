@@ -7,35 +7,28 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.FloatBuffer;
-import java.nio.IntBuffer;
 import java.util.LinkedList;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import javax.swing.JOptionPane;
-import net.q1cc.cfs.mmm.client.Client;
-import net.q1cc.cfs.mmm.common.math.Quaternionf;
-import net.q1cc.cfs.mmm.common.math.Vec3d;
-import net.q1cc.cfs.mmm.common.math.Vec3f;
-import org.lwjgl.LWJGLException;
-import static org.lwjgl.opengl.GL11.*;
-import static org.lwjgl.opengl.GL15.*;
-import static org.lwjgl.opengl.GL13.*;
-import static org.lwjgl.opengl.GL30.*;
-import static org.lwjgl.opengl.GL20.*;
-import org.lwjgl.opengl.*;
-import static org.lwjgl.util.glu.GLU.*;
-import static net.q1cc.cfs.mmm.client.render.Primitives.*;
-
 import net.q1cc.cfs.mmm.common.Player;
 import net.q1cc.cfs.mmm.common.world.World;
 import net.q1cc.cfs.mmm.common.world.WorldOctree;
 import org.lwjgl.BufferUtils;
+import org.lwjgl.LWJGLException;
 import org.lwjgl.Sys;
-import org.lwjgl.opengl.Display;
-import org.lwjgl.opengl.DisplayMode;
 import org.lwjgl.input.Keyboard;
 import org.lwjgl.input.Mouse;
-import org.lwjgl.opengl.ARBVertexBufferObject;
-import org.lwjgl.opengl.GLContext;
+import org.lwjgl.opengl.Display;
+import org.lwjgl.opengl.DisplayMode;
+import static org.lwjgl.opengl.GL11.*;
+import static org.lwjgl.opengl.GL13.GL_TEXTURE0;
+import static org.lwjgl.opengl.GL13.glActiveTexture;
+import static org.lwjgl.opengl.GL15.*;
+import static org.lwjgl.opengl.GL20.*;
+import static org.lwjgl.opengl.GL30.glBindVertexArray;
+import static org.lwjgl.opengl.GL30.glGenVertexArrays;
+import org.lwjgl.opengl.PixelFormat;
+import org.lwjgl.opengl.Util;
 import org.lwjgl.util.vector.Matrix4f;
 import org.lwjgl.util.vector.Vector3f;
 
@@ -297,7 +290,7 @@ public class MainGLRender extends Thread {
         //TODO check if there is time
         //now to buffer some chunks
         if(!chunksToBuffer.isEmpty()){
-            for(int i=0;i<1;i++){ //TODO do as many as time allows us to
+            for(int i=0;i<2;i++){ //TODO do as many as time allows us to
                 if(!chunksToBuffer.isEmpty())
                     bufferChunk(chunksToBuffer.pop());
             }

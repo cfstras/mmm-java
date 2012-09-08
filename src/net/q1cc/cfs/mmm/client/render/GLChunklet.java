@@ -301,44 +301,4 @@ public class GLChunklet extends Chunklet implements WorkerTask {
         return vertexPos;
     }
     
-    private boolean faceIsHidden(Block b, int ix, int iy, int iz, int side, boolean uptodate){
-        if (b.adjecentOpaquesCalculated) {
-            return b.adjecentOpaques[side];
-        }
-        boolean h=false;
-        if (side == 0) { //top
-            h = hasOpaqueBlock(ix, iy + 1, iz);
-        } else if (side == 1) { //bot
-            h = hasOpaqueBlock(ix, iy - 1, iz);
-        } else if (side == 2) { //left
-            h = hasOpaqueBlock(ix - 1, iy, iz);
-        } else if (side == 3) { //right
-            h = hasOpaqueBlock(ix + 1, iy, iz);
-        } else if (side == 4) { //front
-            h = hasOpaqueBlock(ix, iy, iz + 1);
-        } else if (side == 5) { //back
-            h = hasOpaqueBlock(ix, iy, iz - 1);
-        } else {
-            System.out.println("wtf");
-        }
-        b.adjecentOpaques[side]=h;
-        return h;
-    }
-    
-    private boolean hasOpaqueBlock(int ix, int iy, int iz) {
-        
-        if (ix >= csl || ix < 0 || iy >= csl || iy < 0 || iz >= csl || iz < 0) {
-            return false;
-            //TODO check adjecent octree
-        }
-        Block b = blocks[ix + iy * Chunklet.csl + iz * Chunklet.csl2];
-        if (b == null) {
-            return false;
-        }
-        if (b.isOpaque) {
-            return true;
-        }
-        return false;
-    }
-    
 }

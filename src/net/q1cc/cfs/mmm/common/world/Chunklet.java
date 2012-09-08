@@ -62,4 +62,84 @@ public class Chunklet implements Serializable {
     public static int getBlockIndex(Vec3d pos) {
         return getBlockIndex((float)pos.x,(float)pos.y,(float)pos.z);
     }
+
+    protected boolean faceIsHidden(Block b, int ix, int iy, int iz, int side, boolean uptodate) {
+        if (b.adjecentOpaquesCalculated) {
+            return b.adjecentOpaques[side];
+        }
+        boolean h = false;
+        if (side == 0) {
+            //top
+            h = hasOpaqueBlock(ix, iy + 1, iz, true);
+        } else if (side == 1) {
+            //bot
+            h = hasOpaqueBlock(ix, iy - 1, iz, true);
+        } else if (side == 2) {
+            //left
+            h = hasOpaqueBlock(ix - 1, iy, iz, true);
+        } else if (side == 3) {
+            //right
+            h = hasOpaqueBlock(ix + 1, iy, iz, true);
+        } else if (side == 4) {
+            //front
+            h = hasOpaqueBlock(ix, iy, iz + 1, true);
+        } else if (side == 5) {
+            //back
+            h = hasOpaqueBlock(ix, iy, iz - 1, true);
+        } else {
+            System.out.println("wtf");
+        }
+        b.adjecentOpaques[side] = h;
+        return h;
+    }
+
+    protected boolean hasOpaqueBlock(int ix, int iy, int iz, boolean couldBeOutside) {
+        if (couldBeOutside && (ix >= csl || ix < 0 || iy >= csl || iy < 0 || iz >= csl || iz < 0)) {
+            //check adjecent octree nodes
+            int adjSide = -1;
+            if (iy >= csl) {
+                //top
+                adjSide = 0;
+                iy %= csl;
+            } else if (iy < 0) {
+                //bot
+                adjSide = 1;
+                iy += csl;
+            } else if (ix < 0) {
+                //left
+                adjSide = 2;
+                ix += csl;
+            } else if (ix >= csl) {
+                //right
+                adjSide = 3;
+                ix %= csl;
+            } else if (iz >= csl) {
+                //front
+                adjSide = 4;
+                iz %= csl;
+            } else if (iz < 0) {
+                //back
+                adjSide = 5;
+                iz += csl;
+            } else {
+                System.out.println("wtf");
+            }
+            WorldOctree otheroc = parent.getAdjecent(adjSide);
+            if (otheroc == null) {
+                return false;
+            }
+            if (otheroc.block == null) {
+                return false;
+            }
+            return otheroc.block.hasOpaqueBlock(ix, iy, iz, false);
+        }
+        Block b = blocks[ix + iy * Chunklet.csl + iz * Chunklet.csl2];
+        if (b == null) {
+            return false;
+        }
+        if (b.isOpaque) {
+            return true;
+        }
+        return false;
+    }
 }
