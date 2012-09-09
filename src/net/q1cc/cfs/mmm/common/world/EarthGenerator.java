@@ -30,11 +30,9 @@ public class EarthGenerator extends WorldGenerator{
                     System.out.println("gen: l="+levels+" i="+i);
             }
         } else {
-            //TODO implent funky sinewaves, iFFT's, imbapolynoms or other stuff somwhere around this line.
             pos=oc.position;
             if(oc.height>5 && oc.height+Chunklet.csl>5){
                 oc.block=null;
-                //blox[(int)pos.x][(int)pos.y][(int)pos.z]=null;
             }
             else {
                 oc.block = new Chunklet((int)oc.position.x,(int)oc.position.y,(int)oc.position.z,oc);
@@ -56,7 +54,7 @@ public class EarthGenerator extends WorldGenerator{
     }
     Block generateBlock(int x, int y, int z, double height) {
         
-        double d = noise(x/40.0, y/10.0, z/40.0)-y/10.0;
+        double d = noise(x/40.0, y/10.0, z/40.0) - (y/10.0+1);
         if (d>0 && d<0.5) {
             return StaticBlock.GRASS.clone();
         } else if (d>=0.5 && d<1.5) {

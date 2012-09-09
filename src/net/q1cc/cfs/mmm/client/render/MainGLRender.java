@@ -280,9 +280,11 @@ public class MainGLRender extends Thread {
         //TODO check if there is time
         //now to buffer some chunks
         if(!chunksToBuffer.isEmpty()){
-            for(int i=0;i<2;i++){ //TODO do as many as time allows us to
+            for(int i=0;i<10;i++){ //TODO do as many as time allows us to
                 if(!chunksToBuffer.isEmpty())
                     bufferChunk(chunksToBuffer.pop());
+                else
+                    break;
             }
         }
         
@@ -354,8 +356,8 @@ public class MainGLRender extends Thread {
 
     private void initGL() {
         glEnable(GL_TEXTURE_2D); // Enable Texture Mapping
-        glClearColor(0.2f, 0.3f, 0.7f, 0.0f); // Blue Background
-        glClearDepth(1.0); // Depth Buffer Setup
+        glClearColor(0.25f, 0.35f, 0.9f, 0.0f); // Blue Background
+        glClearDepth(1); // Depth Buffer Setup
         glEnable(GL_DEPTH_TEST); // Enables Depth Testing
         glDepthFunc(GL_LEQUAL); // The Type Of Depth Testing To Do
         
@@ -365,6 +367,8 @@ public class MainGLRender extends Thread {
         
         loadShaders();
         loadTextures();
+        posChunkMat = new Matrix4f();
+        posChunkMatB = BufferUtils.createFloatBuffer(16);
         setupProjection();
         
     }
@@ -508,15 +512,14 @@ public class MainGLRender extends Thread {
 
     private void setupProjection() {
         displayMode = Display.getDisplayMode();
-
+        glViewport(0, 0, displayMode.getWidth(), displayMode.getHeight());
+        System.out.println(displayMode);
         projMat = getProjection(80,
                 (float) displayMode.getWidth() / (float) displayMode.getHeight(),
-                0.5f, 1000.0f);
-        posChunkMat = new Matrix4f();
+                0.1f, 1000.0f);
         projMatB = BufferUtils.createFloatBuffer(16);
         projMat.store(projMatB);
         projMatB.flip();
-        posChunkMatB = BufferUtils.createFloatBuffer(16);
     }
     
     public static Matrix4f getProjection(float fov, float aspect, float zNear, float zFar) {
@@ -551,7 +554,7 @@ public class MainGLRender extends Thread {
         try {
             glActiveTexture(GL_TEXTURE0);
             Texture b = texL.getTexture("/png/blocks.png", GL_TEXTURE_2D,GL_RGB,
-                    GL_NEAREST_MIPMAP_LINEAR,GL_NEAREST);
+                    GL_LINEAR,GL_NEAREST);
             //JOptionPane.showMessageDialog(Display.getParent(),"Texture loaded:"+b );
             if(b==null){
                 System.out.println("error: texture could not be loaded.");
@@ -560,6 +563,8 @@ public class MainGLRender extends Thread {
                 blockTexture=b;
                 b.bind();
                 glGenerateMipmap(GL_TEXTURE_2D);
+                glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_CLAMP);
+                glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_CLAMP);
                 glBindTexture(GL_TEXTURE_2D,0);
             }
         } catch (IOException ex) {
