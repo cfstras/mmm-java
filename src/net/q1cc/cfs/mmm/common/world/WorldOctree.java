@@ -77,7 +77,7 @@ public class WorldOctree implements Serializable{
      * 1GB RAM gives us ~4 mio blocks.
      * 
      */
-    static final int highestSubtreeLvl = 4;
+    static final int highestSubtreeLvl = 3;
     
     /**
      * This shows if this subtree has already been generated.

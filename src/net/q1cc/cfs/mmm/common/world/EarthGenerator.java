@@ -5,6 +5,7 @@
 package net.q1cc.cfs.mmm.common.world;
 
 import net.q1cc.cfs.mmm.common.StaticBlock;
+import static net.q1cc.cfs.mmm.common.math.SimplexNoise.*;
 import net.q1cc.cfs.mmm.common.math.Vec3d;
 
 /**
@@ -46,16 +47,24 @@ public class EarthGenerator extends WorldGenerator{
         for (int x = 0; x < Chunklet.csl; x++) {
             for (int y = 0; y < Chunklet.csl; y++) {
                 for (int z = 0; z < Chunklet.csl; z++) {
-                    if((c.parent.height + y)==5) {
-                        c.blocks[x + Chunklet.csl * y + Chunklet.csl2 * z] = StaticBlock.GRASS.clone();
-                    } else if (c.parent.height + y >= -5 && c.parent.height + y < 5) {
-                        c.blocks[x + Chunklet.csl * y + Chunklet.csl2 * z] = StaticBlock.DIRT.clone();
-                    } else if (c.parent.height + y < -5 && c.parent.height + y > -100) {
-                        c.blocks[x + Chunklet.csl * y + Chunklet.csl2 * z] = StaticBlock.STONE.clone();
-                    }
+                    c.blocks[x + Chunklet.csl * y + Chunklet.csl2 * z]
+                            = generateBlock(x+c.posX,y+c.posY,z+c.posZ,c.parent.height);
 
                 }
             }
         }
+    }
+    Block generateBlock(int x, int y, int z, double height) {
+        
+        double d = noise(x/40.0, y/10.0, z/40.0)-y/10.0;
+        if (d>0 && d<0.5) {
+            return StaticBlock.GRASS.clone();
+        } else if (d>=0.5 && d<1.5) {
+            return StaticBlock.DIRT.clone();
+        } else if (d>=1.5) {
+            return StaticBlock.STONE.clone();
+        }
+        
+        return null;
     }
 }

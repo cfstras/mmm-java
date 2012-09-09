@@ -51,6 +51,9 @@ public class WorkerTaskPool {
         }
         for(Worker w:workers){
             w.live=false;
+            synchronized(w){
+                w.notifyAll();
+            }
         }
         for(Worker w:workers){
             try {

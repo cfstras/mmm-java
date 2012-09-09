@@ -1,6 +1,4 @@
-
 package net.q1cc.cfs.mmm.client.render;
-
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -18,17 +16,13 @@ import org.lwjgl.LWJGLException;
 import org.lwjgl.Sys;
 import org.lwjgl.input.Keyboard;
 import org.lwjgl.input.Mouse;
-import org.lwjgl.opengl.Display;
-import org.lwjgl.opengl.DisplayMode;
+import org.lwjgl.opengl.*;
 import static org.lwjgl.opengl.GL11.*;
 import static org.lwjgl.opengl.GL13.GL_TEXTURE0;
 import static org.lwjgl.opengl.GL13.glActiveTexture;
 import static org.lwjgl.opengl.GL15.*;
 import static org.lwjgl.opengl.GL20.*;
-import static org.lwjgl.opengl.GL30.glBindVertexArray;
-import static org.lwjgl.opengl.GL30.glGenVertexArrays;
-import org.lwjgl.opengl.PixelFormat;
-import org.lwjgl.opengl.Util;
+import static org.lwjgl.opengl.GL30.*;
 import org.lwjgl.util.vector.Matrix4f;
 import org.lwjgl.util.vector.Vector3f;
 
@@ -360,13 +354,13 @@ public class MainGLRender extends Thread {
 
     private void initGL() {
         glEnable(GL_TEXTURE_2D); // Enable Texture Mapping
-        glClearColor(0.2f, 0.3f, 0.7f, 0.0f); // Black Background
+        glClearColor(0.2f, 0.3f, 0.7f, 0.0f); // Blue Background
         glClearDepth(1.0); // Depth Buffer Setup
         glEnable(GL_DEPTH_TEST); // Enables Depth Testing
         glDepthFunc(GL_LEQUAL); // The Type Of Depth Testing To Do
         
         
-        glEnable(GL_CULL_FACE);
+        //glEnable(GL_CULL_FACE);
         glFrontFace(GL_CCW);
         
         loadShaders();
@@ -556,14 +550,17 @@ public class MainGLRender extends Thread {
         texL= new TextureLoader();
         try {
             glActiveTexture(GL_TEXTURE0);
-            Texture b = texL.getTexture("/png/blocks.png", GL_TEXTURE_2D,GL_RGB,GL_LINEAR,GL_NEAREST);
+            Texture b = texL.getTexture("/png/blocks.png", GL_TEXTURE_2D,GL_RGB,
+                    GL_NEAREST_MIPMAP_LINEAR,GL_NEAREST);
             //JOptionPane.showMessageDialog(Display.getParent(),"Texture loaded:"+b );
             if(b==null){
                 System.out.println("error: texture could not be loaded.");
                 JOptionPane.showMessageDialog(Display.getParent(),"texture not found");
             } else {
-                
                 blockTexture=b;
+                b.bind();
+                glGenerateMipmap(GL_TEXTURE_2D);
+                glBindTexture(GL_TEXTURE_2D,0);
             }
         } catch (IOException ex) {
             ex.printStackTrace();

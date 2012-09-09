@@ -4,12 +4,8 @@
  */
 package net.q1cc.cfs.mmm.common;
 
-import net.q1cc.cfs.mmm.client.Client;
-import net.q1cc.cfs.mmm.common.math.Quaternionf;
-import net.q1cc.cfs.mmm.common.math.Vec3d;
 import net.q1cc.cfs.mmm.common.math.Vec3f;
 import net.q1cc.cfs.mmm.common.world.WorldOctree;
-import org.lwjgl.util.vector.Vector3f;
 
 /**
  * Describes a Generic Entity.
