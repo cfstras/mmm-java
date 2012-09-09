@@ -5,7 +5,7 @@
 package net.q1cc.cfs.mmm.common.world;
 
 import java.util.Random;
-import net.q1cc.cfs.mmm.common.StaticBlock;
+import net.q1cc.cfs.mmm.common.blocks.BlockInfo;
 import net.q1cc.cfs.mmm.common.math.Vec3d;
 import net.q1cc.cfs.mmm.common.math.Vec3f;
 
@@ -49,17 +49,17 @@ abstract public class WorldGenerator {
      * If the isGenerated flag is set, all children must be checked
      * whether they might need to be generated.
      */
-    public abstract void generate(WorldOctree oc,Block[][][] blox,int levels);
+    public abstract void generate(WorldOctree oc,int levels);
     
     /**
      * generates the same way as the normal function does, but generates only the subtrees leading to the position and level specified.
      * @param oc
      * @param levels 
      */
-    public void generateInto(WorldOctree oc,Block[][][] blox,Vec3d position, int toLevel) {
-        generate(oc,blox,0);
+    public void generateInto(WorldOctree oc,Vec3d position, int toLevel) {
+        generate(oc,0);
         if(toLevel<oc.subtreeLvl) {
-            generateInto(WorldOctree.getOctreeAt(position, oc.subtreeLvl-1, oc,true),blox,position,toLevel);
+            generateInto(WorldOctree.getOctreeAt(position, oc.subtreeLvl-1, oc,true),position,toLevel);
         }
     }
     
@@ -76,7 +76,7 @@ abstract public class WorldGenerator {
         if(w.block==null){
             w.block = new Chunklet((int)w.position.x, (int)w.position.y, (int)w.position.z, w);
         }
-        w.block.blocks[Chunklet.getBlockIndex(sp)] = StaticBlock.TORCH.clone();
+        w.block.blocks[Chunklet.getBlockIndex(sp)] = BlockInfo.get(BlockInfo.LIGHTSTONE);
         System.out.println("spawnpoint: "+sp);
         System.out.println("spawnTree: "+w);
         

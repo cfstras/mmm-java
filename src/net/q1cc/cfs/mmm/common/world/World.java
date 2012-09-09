@@ -70,10 +70,8 @@ public class World implements Serializable{
         
         this.worldGenerator=getGenerator();
         
-        //blox=new Block[1024][1024][1024];
-        //fill it with flat mountains.
         //TODO convert this to workers
-        worldGenerator.generate(generateOctree,null, WorldOctree.highestSubtreeLvl); //just some sublevels for now, to be inaccurate.
+        worldGenerator.generate(generateOctree, WorldOctree.highestSubtreeLvl);
         
         this.spawnPoint=worldGenerator.spawnPoint(); //call now, because spawnPoint sets a torch
         player=new Player();

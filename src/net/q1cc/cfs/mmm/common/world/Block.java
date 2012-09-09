@@ -18,20 +18,20 @@ public class Block implements Cloneable, Serializable{
      * whether this block is solid, affecting physics calculations.
      * calculated from block ID, not to be serialized.
      */
-    boolean isSolid;
+    //boolean isSolid;
     
     /**
      * The breitness of the light this Block emits.
      * if 0, this block is not emitting any light.
      * normal Sunlight is 1.0 bright.
      */
-    public float brightness;
+    //public float brightness;
     
     /**
      * the color of this block, multiplied to the texture.
      * //TODO replace this with additionalData values, it saves memory.
      */
-    public Color color;
+    //public Color color;
     
     /**
      * the computed light level for this block, measured at its center.
@@ -43,7 +43,7 @@ public class Block implements Cloneable, Serializable{
      * whether the block is opaque and blocks adjecent blocks from sight.
      * calculated from block ID, not to be serialized
      */
-    public boolean isOpaque;
+    //public boolean isOpaque;
     
     /**
      * the block ID, deciding texture and block behaviour
@@ -66,58 +66,16 @@ public class Block implements Cloneable, Serializable{
      * tells if the adjecentOpaques array is up-to-date
      */
     public boolean adjecentOpaquesCalculated;
-    
-    //static info
-    public static final String blockName[] = {
-/*  0*/ "Stone",
-/*  1*/ "Dirt",
-/*  2*/ "Grass",
-/*  3*/ "Torch",
-/*  4*/
-/*  5*/
-/*  6*/
-/*  7*/
-/*  8*/
-/*  9*/
-/* 10*/
-/* 11*/
-/* 12*/
-/* 13*/
-/* 14*/
-/* 15*/
-/* 16*/
-    };
-    
-    //for physics.
-    public static final float blockHeight[] = {
-/*  0*/ 1,
-/*  1*/ 1,
-/*  2*/ 1,
-/*  3*/ 0,
-/*  4*/
-/*  5*/
-/*  6*/
-/*  7*/
-/*  8*/
-/*  9*/
-/* 10*/
-/* 11*/
-/* 12*/
-/* 13*/
-/* 14*/
-/* 15*/
-/* 16*/
-    };
 
-    public Block(boolean isSolid,
-    float brightness,
-    Color color,
-    boolean isOpaque,
+    public Block(//boolean isSolid,
+    //float brightness,
+    //Color color,
+    //boolean isOpaque,
     int blockID){
-        this.isSolid=isSolid;
-        this.brightness=brightness;
-        this.color=color;
-        this.isOpaque=isOpaque;
+        //this.isSolid=isSolid;
+        //this.brightness=brightness;
+        //this.color=color;
+        //this.isOpaque=isOpaque;
         this.blockID=blockID;
         adjecentOpaques=new boolean[6];
     }
@@ -140,6 +98,8 @@ public class Block implements Cloneable, Serializable{
     
     @Override
     public String toString() {
-        return "B"+blockID+","+ (isSolid?"solid,":"")+"emits="+brightness+",light="+lightLevel+",c="+color.toString();
+        //return "B"+blockID+","+ (isSolid?"solid,":"")+"emits="+brightness+",light="+lightLevel+",c="+color.toString();
+        //TODO use blockInfo for this
+        return "B."+blockID;
     }
 }

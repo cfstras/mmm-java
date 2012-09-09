@@ -9,6 +9,7 @@ import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import net.q1cc.cfs.mmm.client.Client;
+import net.q1cc.cfs.mmm.common.blocks.BlockInfo;
 import net.q1cc.cfs.mmm.common.world.Block;
 import net.q1cc.cfs.mmm.common.world.Chunklet;
 import net.q1cc.cfs.mmm.common.world.WorldOctree;
@@ -253,18 +254,20 @@ public class GLChunklet extends Chunklet implements WorkerTask {
     }
     
     private void vert(int u, int v, int side, Block bl){
-        
-        vertexB.put((float)(u)/texture_block_cols+(float)(side)/texture_block_cols)
-                .put((float)(v)/texture_block_rows+(float)(bl.blockID)/texture_block_rows);
+        int texID = BlockInfo.blocks[bl.blockID].getTexID(side);
+        int row = texID/texture_block_cols;
+        int column = texID%texture_block_cols;
+        vertexB.put((float)(u)/texture_block_cols+(float)(column)/texture_block_cols)
+                .put((float)(v)/texture_block_rows+(float)(row)/texture_block_rows);
         vertexIB.position(vertexB.position());
         //Color
-        ReadableColor c = bl.color;
+        ReadableColor c = BlockInfo.blocks[bl.blockID].getColor();
         if(side!=0)c = Color.WHITE;
         int col = 0;
-        col |= c.getAlpha() << (3 * 8); //a
-        col |= c.getBlue() << (2 * 8); //b
+        col |= c.getRed();              //r
         col |= c.getGreen() << (1 * 8); //g
-        col |= c.getRed(); //r
+        col |= c.getBlue() << (2 * 8);  //b
+        col |= c.getAlpha() << (3 * 8); //a
         vertexIB.put(col);
         vertexB.position(vertexIB.position());
         vertexB.put(1337).put(1338);

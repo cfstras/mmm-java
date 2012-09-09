@@ -5,6 +5,7 @@
 package net.q1cc.cfs.mmm.common.world;
 
 import java.io.Serializable;
+import net.q1cc.cfs.mmm.common.blocks.BlockInfo;
 import net.q1cc.cfs.mmm.common.math.Vec3d;
 import net.q1cc.cfs.mmm.common.math.Vec3f;
 
@@ -137,7 +138,7 @@ public class Chunklet implements Serializable {
         if (b == null) {
             return false;
         }
-        if (b.isOpaque) {
+        if (BlockInfo.blocks[b.blockID].isOpaque) {
             return true;
         }
         return false;

@@ -4,7 +4,7 @@
  */
 package net.q1cc.cfs.mmm.common.world;
 
-import net.q1cc.cfs.mmm.common.StaticBlock;
+import net.q1cc.cfs.mmm.common.blocks.BlockInfo;
 import static net.q1cc.cfs.mmm.common.math.SimplexNoise.*;
 import net.q1cc.cfs.mmm.common.math.Vec3d;
 
@@ -20,12 +20,12 @@ public class EarthGenerator extends WorldGenerator{
     }
     
     @Override
-    public void generate(WorldOctree oc,Block[][][] blox, int levels) {
+    public void generate(WorldOctree oc, int levels) {
         //TODO get rid of that recursion, it's damn slow. stupid java.
         Vec3d pos=null;
         if(levels>0){
             for(int i=0;i<8;i++){
-                generate(oc.getSubtree(i,true),blox,levels-1);
+                generate(oc.getSubtree(i,true),levels-1);
                 if(levels>=WorldOctree.highestSubtreeLvl)
                     System.out.println("gen: l="+levels+" i="+i);
             }
@@ -54,13 +54,13 @@ public class EarthGenerator extends WorldGenerator{
     }
     Block generateBlock(int x, int y, int z, double height) {
         
-        double d = noise(x/40.0, y/10.0, z/40.0) - (y/10.0+1);
+        double d = noise(x/40.0, y/10.0, z/40.0) - noise(x/400.0+800, y/50.0, z/400.0+800)*3 - (y/10.0+1);
         if (d>0 && d<0.5) {
-            return StaticBlock.GRASS.clone();
+            return BlockInfo.get(BlockInfo.GRASS);
         } else if (d>=0.5 && d<1.5) {
-            return StaticBlock.DIRT.clone();
+            return BlockInfo.get(BlockInfo.DIRT);
         } else if (d>=1.5) {
-            return StaticBlock.STONE.clone();
+            return BlockInfo.get(BlockInfo.ROCK);
         }
         
         return null;
