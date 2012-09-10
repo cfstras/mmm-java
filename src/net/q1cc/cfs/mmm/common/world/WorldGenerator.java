@@ -1,10 +1,8 @@
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
 package net.q1cc.cfs.mmm.common.world;
 
 import java.util.Random;
+import net.q1cc.cfs.mmm.client.render.WorkerTask;
+import net.q1cc.cfs.mmm.client.render.WorkerTaskPool;
 import net.q1cc.cfs.mmm.common.blocks.BlockInfo;
 import net.q1cc.cfs.mmm.common.math.Vec3d;
 import net.q1cc.cfs.mmm.common.math.Vec3f;
@@ -25,16 +23,15 @@ import net.q1cc.cfs.mmm.common.math.Vec3f;
  * 
  * @author claus
  */
-abstract public class WorldGenerator {
+abstract public class WorldGenerator extends WorldProvider {
     
-    Random r;
-    long seed;
-    World world;
+    public WorldGenerator(World world,WorkerTaskPool taskPool){
+        super(world,taskPool);
+    }
     
-    public WorldGenerator(World world){
-        this.world=world;
-        seed=world.worldSeed;
-        r=new Random(seed);
+    @Override
+    public void provideSubtree(WorldOctree oc, int levels){
+        taskPool.add(new WorkerTaskImpl(oc, levels));
     }
     
     /**
@@ -62,25 +59,27 @@ abstract public class WorldGenerator {
             generateInto(WorldOctree.getOctreeAt(position, oc.subtreeLvl-1, oc,true),position,toLevel);
         }
     }
-    
-    public Vec3d spawnPoint() {
-        r.setSeed(seed ^ 0x4846983579aa2bL); //some random.org value
-        double maxXZ= (WorldOctree.getSidelength(WorldOctree.highestSubtreeLvl-1));
-        
-        Vec3d sp=new Vec3d( r.nextDouble()*maxXZ, 5 ,r.nextDouble()*maxXZ );
-        //TODO move as high as needed to spawn properly
-        //and select another point if this takes too long
-        
-        //just for show, spawn a torch there.
-        WorldOctree w= WorldOctree.getOctreeAt(sp, 0, world.generateOctree,true);
-        if(w.block==null){
-            w.block = new Chunklet((int)w.position.x, (int)w.position.y, (int)w.position.z, w);
+
+    private class WorkerTaskImpl implements WorkerTask {
+
+        private final WorldOctree oc;
+        private final int levels;
+
+        public WorkerTaskImpl(WorldOctree oc, int levels) {
+            this.oc = oc;
+            this.levels = levels;
         }
-        w.block.blocks[Chunklet.getBlockIndex(sp)] = BlockInfo.get(BlockInfo.LIGHTSTONE);
-        System.out.println("spawnpoint: "+sp);
-        System.out.println("spawnTree: "+w);
-        
-        return sp;
+
+        @Override
+        public int getPriority() {
+            return WorkerTask.PRIORITY_NORM;
+        }
+
+        @Override
+        public boolean doWork() {
+            generate(oc,levels);
+            return true;
+        }
     }
     
 }

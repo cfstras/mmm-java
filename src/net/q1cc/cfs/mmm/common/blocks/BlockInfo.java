@@ -83,6 +83,8 @@ public class BlockInfo {
         return new Color(255,255,255,255);
     }
     
+    private static int blocksCreated=0;
+    
     /**
      * returns a fresh instance of the given block id.
      * @param id
@@ -90,6 +92,16 @@ public class BlockInfo {
      */
     public static Block get(int id) {
         //BlockInfo i = blocks[id];
+        blocksCreated++;
+        if(blocksCreated%2097152==0){
+            long mem = Runtime.getRuntime().freeMemory();
+            System.out.println(mem/1024+"K mem left. "+
+                    blocksCreated/1024/1024+"M blocks");
+            if(mem<50000000){ //50MB
+                System.gc();
+                System.out.println(Runtime.getRuntime().freeMemory()/1024+"K mem after gc.");
+            }
+        }
         return new Block(id);
     }
     

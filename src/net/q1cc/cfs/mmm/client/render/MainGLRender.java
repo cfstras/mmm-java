@@ -8,6 +8,7 @@ import java.nio.FloatBuffer;
 import java.util.LinkedList;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import javax.swing.JOptionPane;
+import net.q1cc.cfs.mmm.client.Client;
 import net.q1cc.cfs.mmm.common.Player;
 import net.q1cc.cfs.mmm.common.world.World;
 import net.q1cc.cfs.mmm.common.world.WorldOctree;
@@ -31,7 +32,7 @@ import org.lwjgl.util.vector.Vector3f;
  */
 public class MainGLRender extends Thread {
         
-    WorkerTaskPool taskPool = new WorkerTaskPool();
+    public WorkerTaskPool taskPool = Client.instance.taskPool;
     
     ConcurrentLinkedDeque<GLChunklet> chunksToBuffer = new ConcurrentLinkedDeque<GLChunklet>();
     
@@ -309,7 +310,7 @@ public class MainGLRender extends Thread {
             DisplayMode d[] = Display.getAvailableDisplayModes();
             displayMode=d[0];
             for (int i = 1; i < d.length; i++) {
-                if (d[i].getWidth() == 800
+                if (d[i].getWidth() == 1440
                     && d[i].getBitsPerPixel() == 32) {
                     displayMode = d[i];
                     break;
@@ -331,8 +332,7 @@ public class MainGLRender extends Thread {
         }
     }
     public void init() {
-        // start worker Threads
-        taskPool.initWorkers();
+        
         // start loading the world and converting chunklets to glchunklets
         
         //since we have the full world already (debug mode), just convert all chunklets
@@ -430,13 +430,16 @@ public class MainGLRender extends Thread {
                     GLChunklet n = new GLChunklet(oc.block);
                     oc.block = n;
                     taskPool.add(n);
+                } else {
+                    GLChunklet n = (GLChunklet) oc.block;
+                    if(!n.built){
+                        taskPool.add(n);
+                    }
                 }
             } else if(oc.block instanceof GLChunklet){
                 ((GLChunklet)oc.block).built=false;
                 taskPool.add((GLChunklet)oc.block);
             }
-            
-            
         }
         if(!oc.hasSubtrees) return;
         for(WorldOctree c: oc.subtrees){

@@ -75,9 +75,9 @@ public class GLChunklet extends Chunklet implements WorkerTask {
         }
     }
     
-    //public GLChunklet(int x, int y, int z, WorldOctree parent){
-    //    super(x,y,z, parent);
-    //}
+    public GLChunklet(int x, int y, int z, WorldOctree parent){
+        super(x,y,z, parent);
+    }
     
     /**
      * Builds a chunks representation into video memory.

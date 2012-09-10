@@ -66,7 +66,7 @@ public class WorldOctree implements Serializable{
     public Vec3d position;
     
     /**
-     * Defines the max size of an octree.
+     * Defines the max level of an octree.
      * the last octree subnode has a 16x16x16 chunklet,
      * so level 4 gives us 256 sidelength, 1M blocks
      * could be in ram without problems.

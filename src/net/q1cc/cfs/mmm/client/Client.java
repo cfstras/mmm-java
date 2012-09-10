@@ -9,6 +9,7 @@ import net.q1cc.cfs.mmm.common.world.World;
 import java.io.File;
 import javax.swing.JOptionPane;
 import net.q1cc.cfs.mmm.client.render.MainGLRender;
+import net.q1cc.cfs.mmm.client.render.WorkerTaskPool;
 import net.q1cc.cfs.mmm.common.Info;
 import net.q1cc.cfs.mmm.common.Player;
 
@@ -44,6 +45,8 @@ public class Client {
     
     public World world;
     
+    public WorkerTaskPool taskPool;
+    
     /**
      * @param args the command line arguments
      */
@@ -61,6 +64,9 @@ public class Client {
     }
     
     public void init(){
+        // start worker Threads
+        taskPool = new WorkerTaskPool();
+        taskPool.initWorkers();
         //display menu
         //connect to server or load world
         System.out.println(Runtime.getRuntime().maxMemory());

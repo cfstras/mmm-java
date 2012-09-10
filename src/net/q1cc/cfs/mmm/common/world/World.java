@@ -6,8 +6,10 @@ package net.q1cc.cfs.mmm.common.world;
 
 import java.io.File;
 import java.io.Serializable;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import net.q1cc.cfs.mmm.client.Client;
+import net.q1cc.cfs.mmm.client.render.WorkerTaskPool;
 import net.q1cc.cfs.mmm.common.Player;
 import net.q1cc.cfs.mmm.common.math.Vec3d;
 import net.q1cc.cfs.mmm.common.math.Vec3f;
@@ -84,19 +86,25 @@ public class World implements Serializable{
     }
     
     private WorldGenerator getGenerator(){
-        Class<?> wgclass=null;
-        try {
-            wgclass=(Class<?>)Class.forName("net.q1cc.cfs.mmm.common.world."+worldType.name());
-        } catch (Exception ex){
-            System.err.println("Error: could not find World Generator for worldType "+worldType.name()+". Using Earth.");
-            ex.printStackTrace();
-            wgclass=EarthGenerator.class;
-        }
-        WorldGenerator wg = null;
-        try {
-            wg = (WorldGenerator)wgclass.getConstructor(World.class).newInstance(this);
-        } catch (Exception ex) {
-            ex.printStackTrace();
+//        Class<?> wgclass=null;
+//        try {
+//            wgclass=(Class<?>)Class.forName("net.q1cc.cfs.mmm.common.world."+worldType.name());
+//        } catch (Exception ex){
+//            System.err.println("Error: could not find World Generator for worldType "+worldType.name()+". Using Earth.");
+//            ex.printStackTrace();
+//            wgclass=EarthGenerator.class;
+//        }
+//        WorldGenerator wg = null;
+//        try {
+//            Constructor<?>[] cons = wgclass.getConstructors();
+//            
+//            wg = (WorldGenerator)cons[0].newInstance(this,Client.instance.renderer.taskPool);
+//        } catch (Exception ex) {
+//            ex.printStackTrace();
+//        }
+        WorldGenerator wg=null;
+        if(worldType == WorldGeneratorType.EarthGenerator){
+            wg = new EarthGenerator(this, Client.instance.taskPool);
         }
         
         return wg;

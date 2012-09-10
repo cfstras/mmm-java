@@ -82,16 +82,11 @@ public class Block implements Cloneable, Serializable{
     
     @Override
     public Block clone() {
-        Block newB=null;
-        try {
-            newB = (Block)super.clone();
-        } catch (CloneNotSupportedException ex) {
-            ex.printStackTrace();
-        }
-        newB.adjecentOpaques = new boolean[6];
+        Block newB = new Block(blockID);
         for(int i=0;i<6;i++){
             newB.adjecentOpaques[i]=adjecentOpaques[i];
         }
+        newB.adjecentOpaquesCalculated=adjecentOpaquesCalculated;
         //reset unique values like IDs etc.
         return newB;
     }
