@@ -60,6 +60,7 @@ public class GLChunklet extends Chunklet implements WorkerTask {
     public IntBuffer indexB;
     
     boolean built=false;
+    boolean loaded=false;
     boolean update=false;
     
     /**

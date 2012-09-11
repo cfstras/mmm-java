@@ -5,7 +5,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.FloatBuffer;
+import java.util.ArrayList;
 import java.util.LinkedList;
+import java.util.Vector;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import javax.swing.JOptionPane;
 import net.q1cc.cfs.mmm.client.Client;
@@ -35,11 +37,14 @@ public class MainGLRender extends Thread {
     public WorkerTaskPool taskPool = Client.instance.taskPool;
     
     ConcurrentLinkedDeque<GLChunklet> chunksToBuffer = new ConcurrentLinkedDeque<GLChunklet>();
+    Vector<GLChunklet> chunksBuffered = new Vector<GLChunklet>(50); //this has to be threadsafe.
+    private ChunkletManager chunkletManager;
+    public GLGarbageCollector garbageCollector = new GLGarbageCollector();
     
     private boolean fullscreen = false;
     private final String windowTitle = "mmm-java";
     private boolean f11 = false;
-    private boolean done = false;
+    boolean exiting = false;
     
     Player player;
 
@@ -87,7 +92,7 @@ public class MainGLRender extends Thread {
         
         lastFPS = getTime();
         try {
-            while (!done) {
+            while (!exiting) {
                 keyboard();
                 if(Display.wasResized()){
                     setupProjection();
@@ -95,6 +100,7 @@ public class MainGLRender extends Thread {
                 render();
                 Display.update();
                 updateFPSandDelta();
+                garbageCollector.collect();
                 Display.sync(60);
             }
             cleanup();
@@ -173,7 +179,7 @@ public class MainGLRender extends Thread {
             Mouse.setGrabbed(false);
         }
         if(Display.isCloseRequested()) {                     // Exit if window is closed
-            done = true;
+            exiting = true;
         }
         if(Keyboard.isKeyDown(Keyboard.KEY_F11) && !f11) {    // Is F11 Being Pressed?
             f11 = true;                                      // Tell Program F1 Is Being Held
@@ -221,6 +227,10 @@ public class MainGLRender extends Thread {
         }
         if(left||right||forward||back){
             player.move(forward, left, right, back, false);
+            //if(taskPool.tasks.contains(chunkletManager)) {
+            //    taskPool.add(chunkletManager);
+            //}
+            taskPool.add(chunkletManager);
         }
         
         if(Mouse.isGrabbed()){
@@ -348,6 +358,8 @@ public class MainGLRender extends Thread {
                 return WorkerTask.PRIORITY_MAX;
             }
         });
+        chunkletManager = new ChunkletManager(this);
+        taskPool.add(chunkletManager);
         
         createWindow();
         Mouse.setGrabbed(false);
@@ -360,7 +372,6 @@ public class MainGLRender extends Thread {
         glClearDepth(1); // Depth Buffer Setup
         glEnable(GL_DEPTH_TEST); // Enables Depth Testing
         glDepthFunc(GL_LEQUAL); // The Type Of Depth Testing To Do
-        
         
         //glEnable(GL_CULL_FACE);
         glFrontFace(GL_CCW);
@@ -422,7 +433,7 @@ public class MainGLRender extends Thread {
         recursePrepare(world.generateOctree,reload);
     }
     
-    void recursePrepare(WorldOctree oc, boolean reload){
+    public void recursePrepare(WorldOctree oc, boolean reload){
         if(oc==null) return;
         if(oc.block!=null){
             if(!reload){
@@ -448,45 +459,57 @@ public class MainGLRender extends Thread {
     }
     
     private void bufferChunk(GLChunklet cl) {
-        int vboID = glGenBuffers();
-        int iboID = glGenBuffers();
-        int vaoID = glGenVertexArrays();
-        glBindVertexArray(vaoID);
-        glBindBuffer(GL_ARRAY_BUFFER, vboID);
-        glBufferData(GL_ARRAY_BUFFER, cl.vertexB, GL_STATIC_DRAW);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,iboID);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER,cl.indexB,GL_STATIC_DRAW);
-        glEnableVertexAttribArray(attPos);
-        glEnableVertexAttribArray(attColor);
-        glEnableVertexAttribArray(attTex);
-        glVertexAttribPointer(attPos, 3, GL_FLOAT, false, 4*8, 4*0);
-        glVertexAttribPointer(attTex, 2, GL_FLOAT, false, 4*8, 4*3);
-        glVertexAttribPointer(attColor, 4, GL_UNSIGNED_BYTE, false, 4*8, 4*5);
-        glBindVertexArray(0);
-        cl.vboID = vboID;
-        cl.vaoID = vaoID;
-        cl.iboID = iboID;
-        //glBindBuffer(GL_ARRAY_BUFFER,0);
-        //glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,0);
+        synchronized(cl.parent){
+            if(!cl.built || cl.vertexB==null){
+                return;
+            }
+            //TODO check if we still need this one
+            int vboID = glGenBuffers();
+            int iboID = glGenBuffers();
+            int vaoID = glGenVertexArrays();
+            glBindVertexArray(vaoID);
+            glBindBuffer(GL_ARRAY_BUFFER, vboID);
+            glBufferData(GL_ARRAY_BUFFER, cl.vertexB, GL_STATIC_DRAW);
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,iboID);
+            glBufferData(GL_ELEMENT_ARRAY_BUFFER,cl.indexB,GL_STATIC_DRAW);
+            glEnableVertexAttribArray(attPos);
+            glEnableVertexAttribArray(attColor);
+            glEnableVertexAttribArray(attTex);
+            glVertexAttribPointer(attPos, 3, GL_FLOAT, false, 4*8, 4*0);
+            glVertexAttribPointer(attTex, 2, GL_FLOAT, false, 4*8, 4*3);
+            glVertexAttribPointer(attColor, 4, GL_UNSIGNED_BYTE, false, 4*8, 4*5);
+            glBindVertexArray(0);
+            cl.vboID = vboID;
+            cl.vaoID = vaoID;
+            cl.iboID = iboID;
+            //glBindBuffer(GL_ARRAY_BUFFER,0);
+            //glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,0);
+            cl.loaded=true;
+        }
+        chunksBuffered.add(cl);
     }
 
     private void renderOctree(WorldOctree oc) {
         if(oc==null) return;
-        if(oc.block!=null && oc.block instanceof GLChunklet){
-            GLChunklet g = (GLChunklet)oc.block;
-            if(g.vaoID!=-1 && g.blocksInside>0){
-                Matrix4f posChunkMatn = new Matrix4f(posChunkMat);
-                posChunkMatn.translate(new Vector3f(g.posX,g.posY,g.posZ));
-                posChunkMatn.store(posChunkMatB);
-                posChunkMatB.flip();
-                glUniformMatrix4(uniPosChunkMat, false, posChunkMatB);
-                
-                //render this
-                glBindVertexArray(g.vaoID);
-                glDrawElements(GL_TRIANGLES, g.indCount, GL_UNSIGNED_INT, 0);
-                //TODO if rendering is fine, remove this call (leave it to debug)
-                glBindVertexArray(0);
-                chunkletsRendered++;
+        if(oc.block!=null){
+            synchronized(oc){
+                if(oc.block!=null && oc.block instanceof GLChunklet) {
+                    GLChunklet g = (GLChunklet)oc.block;
+                    if(g.loaded && g.vaoID!=-1 && g.blocksInside>0){
+                        Matrix4f posChunkMatn = new Matrix4f(posChunkMat);
+                        posChunkMatn.translate(new Vector3f(g.posX,g.posY,g.posZ));
+                        posChunkMatn.store(posChunkMatB);
+                        posChunkMatB.flip();
+                        glUniformMatrix4(uniPosChunkMat, false, posChunkMatB);
+
+                        //render this
+                        glBindVertexArray(g.vaoID);
+                        glDrawElements(GL_TRIANGLES, g.indCount, GL_UNSIGNED_INT, 0);
+                        //TODO if rendering is fine, remove this call (leave it to debug)
+                        glBindVertexArray(0);
+                        chunkletsRendered++;
+                    }
+                }
             }
         }
         if(!oc.hasSubtrees) return;

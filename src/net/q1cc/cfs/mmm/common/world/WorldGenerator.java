@@ -1,6 +1,8 @@
 package net.q1cc.cfs.mmm.common.world;
 
 import java.util.Random;
+import net.q1cc.cfs.mmm.client.Client;
+import net.q1cc.cfs.mmm.client.render.MainGLRender;
 import net.q1cc.cfs.mmm.client.render.WorkerTask;
 import net.q1cc.cfs.mmm.client.render.WorkerTaskPool;
 import net.q1cc.cfs.mmm.common.blocks.BlockInfo;
@@ -30,8 +32,8 @@ abstract public class WorldGenerator extends WorldProvider {
     }
     
     @Override
-    public void provideSubtree(WorldOctree oc, int levels){
-        taskPool.add(new WorkerTaskImpl(oc, levels));
+    public void provideSubtree(WorldOctree oc, Vec3f position){
+        taskPool.add(new WorkerTaskImpl(oc, position));
     }
     
     /**
@@ -53,21 +55,21 @@ abstract public class WorldGenerator extends WorldProvider {
      * @param oc
      * @param levels 
      */
-    public void generateInto(WorldOctree oc,Vec3d position, int toLevel) {
+    public void generateInto(WorldOctree oc,Vec3f position, int toLevel) {
         generate(oc,0);
         if(toLevel<oc.subtreeLvl) {
-            generateInto(WorldOctree.getOctreeAt(position, oc.subtreeLvl-1, oc,true),position,toLevel);
+            generateInto(WorldOctree.getOctreeAt(new Vec3d(position), oc.subtreeLvl-1, oc,true),position,toLevel);
         }
     }
 
     private class WorkerTaskImpl implements WorkerTask {
 
         private final WorldOctree oc;
-        private final int levels;
+        private final Vec3f position;
 
-        public WorkerTaskImpl(WorldOctree oc, int levels) {
+        public WorkerTaskImpl(WorldOctree oc, Vec3f position) {
             this.oc = oc;
-            this.levels = levels;
+            this.position = position;
         }
 
         @Override
@@ -77,7 +79,8 @@ abstract public class WorldGenerator extends WorldProvider {
 
         @Override
         public boolean doWork() {
-            generate(oc,levels);
+            generateInto(oc,position,0);
+            Client.instance.renderer.recursePrepare(oc, false);
             return true;
         }
     }

@@ -8,6 +8,7 @@ import java.util.Random;
 import net.q1cc.cfs.mmm.client.render.WorkerTaskPool;
 import net.q1cc.cfs.mmm.common.blocks.BlockInfo;
 import net.q1cc.cfs.mmm.common.math.Vec3d;
+import net.q1cc.cfs.mmm.common.math.Vec3f;
 
 /**
  *
@@ -26,7 +27,7 @@ public abstract class WorldProvider {
         r=new Random(seed);
     }
     
-    public abstract void provideSubtree(WorldOctree oc, int levels);
+    public abstract void provideSubtree(WorldOctree oc, Vec3f position);
     
     public Vec3d spawnPoint() {
         r.setSeed(seed ^ 20343817869306411L); //some random.org value

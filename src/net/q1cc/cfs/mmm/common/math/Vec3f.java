@@ -61,11 +61,40 @@ public class Vec3f implements Cloneable {
     }
     
     /**
-     * Adds another Vector to this one and stores the result in a new Vector.
-     * @return a new Vector
+     * Adds another vector to this one and stores the result in a new vector.
+     * @return a new vector
      */
     public Vec3f add(Vec3f other){
         return add(this,other);
+    }
+    
+    /**
+     * subtracts another vector and stores the result in this vector.
+     * @return this vector
+     */
+    public Vec3f subtractToThis(Vec3f other){
+        x-=other.x;
+        y-=other.y;
+        z-=other.z;
+        return this;
+    }
+    
+    /**
+     * subtracts vector b from vector a and stores the result in a new vector.
+     * @param a
+     * @param b
+     * @return a new vector containing the result of a-b
+     */
+    public static Vec3f subtract(Vec3f a, Vec3f b){
+        return new Vec3f(a.x-b.x,a.y-b.y,a.z-b.z);
+    }
+    
+    /**
+     * Calculates the square of the length of this vector.
+     * @return a big green elefant
+     */
+    public float lengthSquared() {
+        return x*x+y*y+z*z;
     }
     
     public static float scalProd(Vec3f a, Vec3f b){

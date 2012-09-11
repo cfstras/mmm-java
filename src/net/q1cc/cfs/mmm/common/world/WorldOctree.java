@@ -397,4 +397,18 @@ public class WorldOctree implements Serializable{
         }
         return sb.toString();
     }
+
+    public void checkForSubtrees() {
+        if(subtrees==null){
+            hasSubtrees=false;
+            return;
+        }
+        for(int i=0;i<8;i++){
+            if(subtrees[i]!=null){
+                hasSubtrees=true;
+                return;
+            }
+        }
+        hasSubtrees=false;
+    }
 }

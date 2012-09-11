@@ -53,7 +53,7 @@ public class World implements Serializable{
      */
     protected WorldGeneratorType worldType;
     
-    protected WorldGenerator worldGenerator;
+    public WorldProvider worldProvider;
     
     protected long worldSeed;
     
@@ -70,12 +70,12 @@ public class World implements Serializable{
         double m = -WorldOctree.getSidelength(WorldOctree.highestSubtreeLvl)/2;
         generateOctree=new WorldOctree(new Vec3d(m,m,m));
         
-        this.worldGenerator=getGenerator();
+        this.worldProvider=getGenerator();
         
         //TODO convert this to workers
-        worldGenerator.generate(generateOctree, WorldOctree.highestSubtreeLvl);
+        ((WorldGenerator)worldProvider).generate(generateOctree, WorldOctree.highestSubtreeLvl);
         
-        this.spawnPoint=worldGenerator.spawnPoint(); //call now, because spawnPoint sets a torch
+        this.spawnPoint=worldProvider.spawnPoint(); //call now, because spawnPoint sets a torch
         player=new Player();
         
         player.position=new Vec3f(spawnPoint.add(Vec3d.UP.mult(2)));

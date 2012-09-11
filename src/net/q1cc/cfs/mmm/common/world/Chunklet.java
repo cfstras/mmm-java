@@ -43,7 +43,7 @@ public class Chunklet implements Serializable {
      */
     public Block[] blocks = new Block[csl*csl*csl];
     
-    public WorldOctree parent;
+    public final WorldOctree parent;
     
     public Chunklet(int posX, int posY, int posZ, WorldOctree parent){
         this.posX=posX; this.posY=posY; this.posZ=posZ;

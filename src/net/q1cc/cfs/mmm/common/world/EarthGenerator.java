@@ -24,7 +24,6 @@ public class EarthGenerator extends WorldGenerator {
     @Override
     public void generate(WorldOctree oc, int levels) {
         //TODO get rid of that recursion, it's damn slow. stupid java.
-        Vec3d pos=null;
         if(levels>0){
             for(int i=0;i<8;i++){
                 generate(oc.getSubtree(i,true),levels-1);
@@ -32,14 +31,16 @@ public class EarthGenerator extends WorldGenerator {
                     System.out.println("gen: l="+levels+" i="+i);
             }
         } else {
-            pos=oc.position;
-            if(oc.height>5 && oc.height+Chunklet.csl>5){
-                oc.block=null;
+            if(oc.subtreeLvl!=0){
+                return; //don't generate anything higher.
             }
-            else {
+            //if(oc.height>5 && oc.height+Chunklet.csl>5){
+            //    oc.block=null;
+            //}
+            //else {
                 oc.block = new Chunklet((int)oc.position.x,(int)oc.position.y,(int)oc.position.z,oc);
                 generate(oc.block);
-            }
+            //}
         } 
         oc.isGenerated=true;
     }
