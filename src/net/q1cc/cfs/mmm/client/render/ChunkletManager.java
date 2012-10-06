@@ -33,7 +33,7 @@ class ChunkletManager implements WorkerTask {
         } else {
             lastLoadPlayerPosition = new Vec3f(player.position);
         }
-        updateViewDistance(16);
+        updateViewDistance(4);
     }
     
     public static void updateViewDistance(int distance) {
@@ -107,15 +107,17 @@ class ChunkletManager implements WorkerTask {
         }
         if(c instanceof GLChunklet) {
             glc = (GLChunklet)c;
-            boolean loaded = glc.loaded;
+            boolean loaded = glc.buffered;
             boolean built = glc.built;
             synchronized(oc){
-                glc.loaded=false;
+                glc.buffered=false;
                 glc.built=false;
                 oc.block=null;
             }
             if(loaded){
-                render.chunksBuffered.remove(glc);
+                synchronized(render.chunksBuffered) {
+                    render.chunksBuffered.remove(glc);
+                }
                 render.garbageCollector.vbosToDelete.add(glc.vboID);
                 glc.vboID=-1;
                 render.garbageCollector.vbosToDelete.add(glc.iboID);
@@ -141,7 +143,7 @@ class ChunkletManager implements WorkerTask {
         }
         if(c instanceof GLChunklet) {
             glc = (GLChunklet)c;
-            if(glc.loaded) return;
+            if(glc.buffered) return;
             if(glc.built) {
                 render.chunksToBuffer.add(glc);
                 return;
@@ -149,7 +151,7 @@ class ChunkletManager implements WorkerTask {
             // should not be needed to put me on the build stack,
             //who loads a chunklet without requesting build?
             //TODO check this is on build taskpool (or not)
-            render.taskPool.add(glc);
+            //render.taskPool.add(glc);
             return;
         }
         glc = new GLChunklet(c);

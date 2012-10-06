@@ -22,10 +22,13 @@ public class WorkerTaskPool {
     boolean workerIdle=true;
     private boolean shutdown=false;
     
+    public static int maxThreads = 1;
+    
     private final Object lock = new Object();
     
     public void initWorkers() {
         int num = Runtime.getRuntime().availableProcessors();
+        num = Math.min(num, maxThreads);
         workers = new Worker[num];
         for(int i=0;i<num;i++){
             workers[i]=new Worker(this);

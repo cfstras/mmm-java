@@ -9,6 +9,7 @@ import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import net.q1cc.cfs.mmm.client.Client;
+import net.q1cc.cfs.mmm.common.MemUtil;
 import net.q1cc.cfs.mmm.common.blocks.BlockInfo;
 import net.q1cc.cfs.mmm.common.world.Block;
 import net.q1cc.cfs.mmm.common.world.Chunklet;
@@ -26,6 +27,8 @@ import org.lwjgl.util.ReadableColor;
  * @author cfstras
  */
 public class GLChunklet extends Chunklet implements WorkerTask {
+    
+    int priority = WorkerTask.PRIORITY_NORM;
     
     public static int texture_block_size = 16;
     public static int texture_block_rows = 8;
@@ -57,10 +60,11 @@ public class GLChunklet extends Chunklet implements WorkerTask {
     public FloatBuffer vertexB;
     public IntBuffer vertexIB;
     public ByteBuffer vertexBB;
+    public ByteBuffer indexBB;
     public IntBuffer indexB;
     
     boolean built=false;
-    boolean loaded=false;
+    boolean buffered=false;
     boolean update=false;
     
     /**
@@ -95,59 +99,38 @@ public class GLChunklet extends Chunklet implements WorkerTask {
      * @param targetV the target vertex buffer, if one is avaliable.
      * @param targetI same for index buffer
      */
-    public synchronized void buildChunklet(ByteBuffer targetV, ByteBuffer targetI) {
-        int sizeGivenI=0, sizeGivenV=0;
+    public synchronized boolean buildChunklet() {
         //build chunk
         
-        //first pass: check for hidden faces and count blocks
         int vertexSize = 8;
         int indexSize = 1;
         int vertices = 0;
         int indices = 0;
-        int vertexPos=0;
+        int vertexPos=0; 
         Block b;
-        blocksInside=0;
-        for (int ix=0; ix<Chunklet.csl; ix++) {
-            for(int iy=0; iy<Chunklet.csl; iy++) {
-                for(int iz=0; iz<Chunklet.csl; iz++) {
-                    b = blocks[ix + iy*Chunklet.csl + iz*Chunklet.csl2];
-                    if(b!=null){
-                        blocksInside++;
-                        vertexPos = block(b,ix,iy,iz,vertexPos,false);
-                    }
-                }
-            }
-        }
-        vertices = 4 * vertexPos/4;
-        indices = 6 * vertexPos/4;
+        blocksInside=Chunklet.csl2*Chunklet.csl;// asume a full chunk
+        vertices = 4 * blocksInside*6;
+        indices = 6 * blocksInside * 4;
         if(blocksInside==0 || indices == 0) {
             built=true;
             //System.out.println("empty/invisible chunklet");
-            return;
+            return true;
         }
         
-        //second pass: generate visible faces
-        vertexB=null;
-        if(targetV!=null) {
-            vertexB = targetV.asFloatBuffer();
-            sizeGivenV = vertexB.capacity();
+        indexBB = MemUtil.getBuffer(indices * indexSize * 4);
+        vertexBB = MemUtil.getBuffer(vertices * vertexSize * 4);
+        
+        if(indexBB==null || vertexBB==null) {
+            priority = WorkerTask.PRIORITY_IDLE;
+            return false;
         }
-        indexB=null;
-        if(targetI!=null) {
-            indexB = targetI.asIntBuffer();
-            sizeGivenI = indexB.capacity();
-        }
-        if( (sizeGivenI < indices * indexSize)){
-            indexB = BufferUtils.createIntBuffer(indices * indexSize);
-        }
-        if( (sizeGivenV < vertices * vertexSize)){
-            vertexBB = BufferUtils.createByteBuffer(vertices * vertexSize * 4);
-        }
+        
+        //indexBB.rewind(); // should not be needed
+        //vertexBB.rewind();
         vertexIB = vertexBB.asIntBuffer();
         vertexB = vertexBB.asFloatBuffer();
-        indexB.rewind();
-        vertexIB.rewind();
-        vertexB.rewind();
+        indexB = indexBB.asIntBuffer();
+        
         //start filling
         vertexPos=0;
         for (int ix=0; ix<Chunklet.csl; ix++) {
@@ -162,20 +145,47 @@ public class GLChunklet extends Chunklet implements WorkerTask {
         }//         forloops
 
         //done.
-        if(vertices != vertexPos){
-            System.out.println("vertices: "+vertices+ " vertexPos:"+vertexPos+ " indices: "+indices);
+        indCount = indexB.position();
+        if(vertexPos!=0 || indCount!=0) {
+            System.out.println("vertices: "+vertexPos+ " indices: "+indCount);
         }
-        indCount = indices;
-        vertexB.flip();
-        indexB.flip();
-        built = true;
-        Client.instance.renderer.chunksToBuffer.add(this);
+        
+        if(vertices==0 || indices == 0) {
+            MemUtil.returnBuffer(indexBB);
+            MemUtil.returnBuffer(vertexBB);
+            indexB = null; indexBB = null;
+            vertexB = null; vertexIB = null; vertexBB = null;
+            built = true;
+        } else {
+            //TODO use a smaller buffer if this one is way too big
+            vertexB.flip();
+            indexB.flip();
+            built = true;
+            Client.instance.renderer.chunksToBuffer.add(this);
+        }
+        
+        return true;
     }
-
+    
+    
+    //boolean alreadyPostponed=false;
     @Override
     public synchronized boolean doWork() {
         if(!built){
-            buildChunklet(null, null);
+            if(!buildChunklet()) {
+                //laters
+                if(indexBB!=null) {
+                    MemUtil.returnBuffer(indexBB);
+                }
+                if(vertexBB!=null) {
+                    MemUtil.returnBuffer(vertexBB);
+                }
+                Client.instance.taskPool.add(this);
+                //if(!alreadyPostponed) {
+                //    System.out.println("postponed.");
+                //    alreadyPostponed=true;
+                //}
+            }
             return true;
         } else {
             System.out.println("I was called without reason, master.");
@@ -185,7 +195,7 @@ public class GLChunklet extends Chunklet implements WorkerTask {
 
     @Override
     public int getPriority() {
-        return WorkerTask.PRIORITY_NORM;
+        return priority;
     }
 
     private int side(Block bl, int ix, int iy, int iz, int side, int vertexPos) {
@@ -265,6 +275,7 @@ public class GLChunklet extends Chunklet implements WorkerTask {
         ReadableColor c = BlockInfo.blocks[bl.blockID].getColor();
         if(side!=0)c = Color.WHITE;
         int col = 0;
+        //TODO use the byte buffer here, makes more sense.
         col |= c.getRed();              //r
         col |= c.getGreen() << (1 * 8); //g
         col |= c.getBlue() << (2 * 8);  //b

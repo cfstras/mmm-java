@@ -4,6 +4,8 @@
  */
 package net.q1cc.cfs.mmm.common.math;
 
+import java.util.Random;
+
 /**
  *
  * @author cfstras
@@ -33,11 +35,12 @@ public class NoiseTest {
         System.out.println("noise2: "+(end-start)/num +"ns mean, "+((end-start)/1000000l)+"ms total");
     }
     public static void testSimplex1(int num){
+        SimplexNoise s = new SimplexNoise(new Random());
         //for(int i=0;i<num;i++) {
         //    SimplexNoise.noise(i+i, i*i);
         //}
         for(int i=0;i<num;i++) {
-            SimplexNoise.noise(i+i, i*i, i*i+i);
+            s.noise(i+i, i*i, i*i+i);
         }
         //for(int i=0;i<num;i++) {
         //    SimplexNoise.noise(i+i, (double)i*i, i*i+i,i);

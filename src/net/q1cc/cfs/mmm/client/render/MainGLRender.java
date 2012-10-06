@@ -6,7 +6,10 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.FloatBuffer;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedList;
+import java.util.Set;
 import java.util.Vector;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import javax.swing.JOptionPane;
@@ -37,7 +40,7 @@ public class MainGLRender extends Thread {
     public WorkerTaskPool taskPool = Client.instance.taskPool;
     
     ConcurrentLinkedDeque<GLChunklet> chunksToBuffer = new ConcurrentLinkedDeque<GLChunklet>();
-    Vector<GLChunklet> chunksBuffered = new Vector<GLChunklet>(50); //this has to be threadsafe.
+    Set<GLChunklet> chunksBuffered = Collections.synchronizedSet(new HashSet<GLChunklet>());
     private ChunkletManager chunkletManager;
     public GLGarbageCollector garbageCollector = new GLGarbageCollector();
     
@@ -284,7 +287,13 @@ public class MainGLRender extends Thread {
         
         //TODO all the render methods here
         chunkletsRendered=0;
-        renderOctree(world.generateOctree);
+        synchronized(chunksBuffered) {
+            for(GLChunklet g:chunksBuffered) {
+                renderChunklet(g);
+            }
+        }
+        //renderOctree(world.generateOctree);
+        
         //System.out.println("chunklets: "+chunkletsRendered);
         //TODO HUD here
         
@@ -346,18 +355,18 @@ public class MainGLRender extends Thread {
         // start loading the world and converting chunklets to glchunklets
         
         //since we have the full world already (debug mode), just convert all chunklets
-        taskPool.add(new WorkerTask(){
-            @Override
-            public synchronized boolean doWork() {
-                prepareAllChunklets(false);
-                return true;
-            }
-
-            @Override
-            public int getPriority() {
-                return WorkerTask.PRIORITY_MAX;
-            }
-        });
+//        taskPool.add(new WorkerTask(){
+//            @Override
+//            public synchronized boolean doWork() {
+//                prepareAllChunklets(false);
+//                return true;
+//            }
+//
+//            @Override
+//            public int getPriority() {
+//                return WorkerTask.PRIORITY_MAX;
+//            }
+//        });
         chunkletManager = new ChunkletManager(this);
         taskPool.add(chunkletManager);
         
@@ -484,9 +493,11 @@ public class MainGLRender extends Thread {
             cl.iboID = iboID;
             //glBindBuffer(GL_ARRAY_BUFFER,0);
             //glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,0);
-            cl.loaded=true;
+            cl.buffered=true;
         }
-        chunksBuffered.add(cl);
+        synchronized(chunksBuffered) {
+            chunksBuffered.add(cl); //TODO move this to a new thread?
+        }
     }
 
     private void renderOctree(WorldOctree oc) {
@@ -495,26 +506,30 @@ public class MainGLRender extends Thread {
             synchronized(oc){
                 if(oc.block!=null && oc.block instanceof GLChunklet) {
                     GLChunklet g = (GLChunklet)oc.block;
-                    if(g.loaded && g.vaoID!=-1 && g.blocksInside>0){
-                        Matrix4f posChunkMatn = new Matrix4f(posChunkMat);
-                        posChunkMatn.translate(new Vector3f(g.posX,g.posY,g.posZ));
-                        posChunkMatn.store(posChunkMatB);
-                        posChunkMatB.flip();
-                        glUniformMatrix4(uniPosChunkMat, false, posChunkMatB);
-
-                        //render this
-                        glBindVertexArray(g.vaoID);
-                        glDrawElements(GL_TRIANGLES, g.indCount, GL_UNSIGNED_INT, 0);
-                        //TODO if rendering is fine, remove this call (leave it to debug)
-                        glBindVertexArray(0);
-                        chunkletsRendered++;
-                    }
+                    renderChunklet(g);
                 }
             }
         }
         if(!oc.hasSubtrees) return;
         for(WorldOctree s:oc.subtrees){
             renderOctree(s);
+        }
+    }
+    
+    private void renderChunklet(GLChunklet g) {
+        if (g.buffered && g.vaoID != -1 && g.blocksInside > 0) {
+            Matrix4f posChunkMatn = new Matrix4f(posChunkMat);
+            posChunkMatn.translate(new Vector3f(g.posX, g.posY, g.posZ));
+            posChunkMatn.store(posChunkMatB);
+            posChunkMatB.flip();
+            glUniformMatrix4(uniPosChunkMat, false, posChunkMatB);
+
+            //render this
+            glBindVertexArray(g.vaoID);
+            glDrawElements(GL_TRIANGLES, g.indCount, GL_UNSIGNED_INT, 0);
+            //TODO if rendering is fine, remove this call (leave it to debug)
+            glBindVertexArray(0);
+            chunkletsRendered++;
         }
     }
 

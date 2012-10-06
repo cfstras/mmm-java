@@ -73,7 +73,7 @@ public class World implements Serializable{
         this.worldProvider=getGenerator();
         
         //TODO convert this to workers
-        ((WorldGenerator)worldProvider).generate(generateOctree, WorldOctree.highestSubtreeLvl);
+        ((WorldGenerator)worldProvider).generate(generateOctree, 4);
         
         this.spawnPoint=worldProvider.spawnPoint(); //call now, because spawnPoint sets a torch
         player=new Player();
