@@ -300,7 +300,7 @@ public class MainGLRender extends Thread {
         //TODO check if there is time
         //now to buffer some chunks
         if(!chunksToBuffer.isEmpty()){
-            for(int i=0;i<10;i++){ //TODO do as many as time allows us to
+            for(int i=0;i<1;i++){ //TODO do as many as time allows us to
                 if(!chunksToBuffer.isEmpty())
                     bufferChunk(chunksToBuffer.pop());
                 else
@@ -354,25 +354,12 @@ public class MainGLRender extends Thread {
         
         // start loading the world and converting chunklets to glchunklets
         
-        //since we have the full world already (debug mode), just convert all chunklets
-//        taskPool.add(new WorkerTask(){
-//            @Override
-//            public synchronized boolean doWork() {
-//                prepareAllChunklets(false);
-//                return true;
-//            }
-//
-//            @Override
-//            public int getPriority() {
-//                return WorkerTask.PRIORITY_MAX;
-//            }
-//        });
         chunkletManager = new ChunkletManager(this);
-        taskPool.add(chunkletManager);
         
         createWindow();
         Mouse.setGrabbed(false);
         initGL();
+        taskPool.add(chunkletManager);
     }
 
     private void initGL() {
@@ -472,7 +459,7 @@ public class MainGLRender extends Thread {
             if(!cl.built || cl.vertexB==null){
                 return;
             }
-            //TODO check if we still need this one
+            //TODO check if we still need this chunk or if it's already too far away
             int vboID = glGenBuffers();
             int iboID = glGenBuffers();
             int vaoID = glGenVertexArrays();
@@ -491,9 +478,7 @@ public class MainGLRender extends Thread {
             cl.vboID = vboID;
             cl.vaoID = vaoID;
             cl.iboID = iboID;
-            //glBindBuffer(GL_ARRAY_BUFFER,0);
-            //glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,0);
-            cl.buffered=true;
+            cl.cleanup(true, true);
         }
         synchronized(chunksBuffered) {
             chunksBuffered.add(cl); //TODO move this to a new thread?

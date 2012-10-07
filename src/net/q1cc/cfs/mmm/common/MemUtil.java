@@ -16,7 +16,7 @@ import org.lwjgl.BufferUtils;
  */
 public class MemUtil {
     
-    static ConcurrentLinkedDeque<ByteBuffer> buffers = new ConcurrentLinkedDeque<ByteBuffer>();
+    final static ConcurrentLinkedDeque<ByteBuffer> buffers = new ConcurrentLinkedDeque<ByteBuffer>();
     
     static boolean outOfMemory = false;
     
@@ -28,23 +28,24 @@ public class MemUtil {
      */
     public static ByteBuffer getBuffer(int minSize) {
         ByteBuffer buffer=null;
-        int cap;
-        Iterator<ByteBuffer> it = buffers.iterator();
-        
-        while(it.hasNext()) {
-            ByteBuffer b = it.next();
-            synchronized(b) {
-                cap = b.capacity();
-                if(buffer == null && cap>=minSize) {
-                    buffer = b;
-                    it.remove();
-                } else if(cap<buffer.capacity() && cap>=minSize) {
-                    buffers.addFirst(buffer);
-                    it.remove();
+        synchronized(buffers) {
+            Iterator<ByteBuffer> it = buffers.iterator();
+
+            while(it.hasNext()) {
+                ByteBuffer b = it.next();
+                //synchronized(b) {
+                    int cap = b.capacity();
+                    if(buffer == null && cap>=minSize) {
+                        buffer = b;
+                        it.remove();
+                    } else if(cap<buffer.capacity() && cap>=minSize) {
+                        buffers.addFirst(buffer);
+                        it.remove();
+                    }
+                //}
+                if(buffer.capacity() == minSize) {
+                    break;
                 }
-            }
-            if(buffer.capacity() == minSize) {
-                break;
             }
         }
         //TODO check if found buffer is way too big
@@ -55,6 +56,7 @@ public class MemUtil {
                 //well, let's leave him with nothing.
                 outOfMemory=true;
                 //TODO when out of memory, schedule a freeing of cached buffers.
+                System.out.println("oom error.");
                 System.gc(); //TODO schedule this to a thread
             }
         }
@@ -63,6 +65,9 @@ public class MemUtil {
     
     public static void returnBuffer(ByteBuffer buffer) {
         buffer.rewind();
-        buffers.addFirst(buffer);
+        buffer.limit(buffer.capacity());
+        synchronized(buffers) {
+            buffers.addFirst(buffer);
+        }
     }
 }

@@ -63,7 +63,9 @@ public class GLChunklet extends Chunklet implements WorkerTask {
     public ByteBuffer indexBB;
     public IntBuffer indexB;
     
+    boolean building=false;
     boolean built=false;
+    boolean empty=false;
     boolean buffered=false;
     boolean update=false;
     
@@ -99,9 +101,17 @@ public class GLChunklet extends Chunklet implements WorkerTask {
      * @param targetV the target vertex buffer, if one is avaliable.
      * @param targetI same for index buffer
      */
-    public synchronized boolean buildChunklet() {
-        //build chunk
+    public boolean buildChunklet() {
+        synchronized (this) {
+            if (building) {
+                System.out.println(toString() + ": double invocation");
+                return true;
+            } else {
+                building=true;
+            }
+        }
         
+        //build chunk
         int vertexSize = 8;
         int indexSize = 1;
         int vertices = 0;
@@ -111,22 +121,19 @@ public class GLChunklet extends Chunklet implements WorkerTask {
         blocksInside=Chunklet.csl2*Chunklet.csl;// asume a full chunk
         vertices = 4 * blocksInside*6;
         indices = 6 * blocksInside * 4;
-        if(blocksInside==0 || indices == 0) {
-            built=true;
-            //System.out.println("empty/invisible chunklet");
-            return true;
-        }
         
         indexBB = MemUtil.getBuffer(indices * indexSize * 4);
         vertexBB = MemUtil.getBuffer(vertices * vertexSize * 4);
         
-        if(indexBB==null || vertexBB==null) {
+        if(indexBB==null || vertexBB==null) { // out of memory, delay generation
             priority = WorkerTask.PRIORITY_IDLE;
+            cleanup(false, false);
+            building=false;
             return false;
         }
         
-        //indexBB.rewind(); // should not be needed
-        //vertexBB.rewind();
+        indexBB.rewind(); // should not be needed
+        vertexBB.rewind();
         vertexIB = vertexBB.asIntBuffer();
         vertexB = vertexBB.asFloatBuffer();
         indexB = indexBB.asIntBuffer();
@@ -147,15 +154,13 @@ public class GLChunklet extends Chunklet implements WorkerTask {
         //done.
         indCount = indexB.position();
         if(vertexPos!=0 || indCount!=0) {
-            System.out.println("vertices: "+vertexPos+ " indices: "+indCount);
+            System.out.println(toString()+": verts: "+vertexPos+ " inds: "+indCount+" t:"+Thread.currentThread().getName());
         }
         
-        if(vertices==0 || indices == 0) {
-            MemUtil.returnBuffer(indexBB);
-            MemUtil.returnBuffer(vertexBB);
-            indexB = null; indexBB = null;
-            vertexB = null; vertexIB = null; vertexBB = null;
-            built = true;
+        if(vertexPos==0 || indCount == 0) {
+            empty=true;
+            building=false;
+            cleanup(true, false);
         } else {
             //TODO use a smaller buffer if this one is way too big
             vertexB.flip();
@@ -163,23 +168,17 @@ public class GLChunklet extends Chunklet implements WorkerTask {
             built = true;
             Client.instance.renderer.chunksToBuffer.add(this);
         }
-        
+        building=false;
         return true;
     }
     
     
     //boolean alreadyPostponed=false;
     @Override
-    public synchronized boolean doWork() {
+    public boolean doWork() {
         if(!built){
             if(!buildChunklet()) {
-                //laters
-                if(indexBB!=null) {
-                    MemUtil.returnBuffer(indexBB);
-                }
-                if(vertexBB!=null) {
-                    MemUtil.returnBuffer(vertexBB);
-                }
+                //didn't get memory, replace on build queue.
                 Client.instance.taskPool.add(this);
                 //if(!alreadyPostponed) {
                 //    System.out.println("postponed.");
@@ -188,7 +187,7 @@ public class GLChunklet extends Chunklet implements WorkerTask {
             }
             return true;
         } else {
-            System.out.println("I was called without reason, master.");
+            System.out.println(toString()+" is built, was called to build.");
             return false;
         }
     }
@@ -315,4 +314,40 @@ public class GLChunklet extends Chunklet implements WorkerTask {
         return vertexPos;
     }
     
+    public boolean cleanup(boolean setBuild, boolean setBuffered) {
+        synchronized(this) {
+            if(building) {
+                System.out.println("trying to cleanup chunklet which is building");
+                return false;
+            }
+            building=true;
+        }
+        built=setBuild;
+        buffered=setBuffered;
+        update=false;
+        ByteBuffer ib = indexBB;
+        ByteBuffer vb = vertexBB;
+        indexBB = null;
+        indexB=null;
+        vertexB = null;
+        vertexIB = null;
+        vertexBB = null;
+        if(ib!=null) {
+            MemUtil.returnBuffer(ib);
+        }
+        if(vb!=null) {
+            MemUtil.returnBuffer(vb);
+        }
+        building=false;
+        return true;
+    }
+    
+    @Override
+    public String toString() {
+        return "GLC@x:"+posX+",y:"+posY+",z:"+posZ
+                +"["+(built?"b":" ")+"]"
+                +"["+(buffered?"l":" ")+"]"
+                +"["+(building?"w":" ")+"]"
+                +"["+(update?"u":" ")+"]";
+    }
 }

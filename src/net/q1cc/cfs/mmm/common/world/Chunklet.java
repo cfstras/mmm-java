@@ -18,6 +18,11 @@ import net.q1cc.cfs.mmm.common.math.Vec3f;
 public class Chunklet implements Serializable {
     
     /**
+     * whether to check faces at the chunklets boundary for occlusion.
+     */
+    public static boolean checkOutsideOcclusion = false;
+    
+    /**
      * the side length of a chunklet. use this instead of 16, if it ever changes.
      */
     public static final int csl = 16;
@@ -71,22 +76,22 @@ public class Chunklet implements Serializable {
         boolean h = false;
         if (side == 0) {
             //top
-            h = hasOpaqueBlock(ix, iy + 1, iz, true);
+            h = hasOpaqueBlock(ix, iy + 1, iz, checkOutsideOcclusion);
         } else if (side == 1) {
             //bot
-            h = hasOpaqueBlock(ix, iy - 1, iz, true);
+            h = hasOpaqueBlock(ix, iy - 1, iz, checkOutsideOcclusion);
         } else if (side == 2) {
             //left
-            h = hasOpaqueBlock(ix - 1, iy, iz, true);
+            h = hasOpaqueBlock(ix - 1, iy, iz, checkOutsideOcclusion);
         } else if (side == 3) {
             //right
-            h = hasOpaqueBlock(ix + 1, iy, iz, true);
+            h = hasOpaqueBlock(ix + 1, iy, iz, checkOutsideOcclusion);
         } else if (side == 4) {
             //front
-            h = hasOpaqueBlock(ix, iy, iz + 1, true);
+            h = hasOpaqueBlock(ix, iy, iz + 1, checkOutsideOcclusion);
         } else if (side == 5) {
             //back
-            h = hasOpaqueBlock(ix, iy, iz - 1, true);
+            h = hasOpaqueBlock(ix, iy, iz - 1, checkOutsideOcclusion);
         } else {
             System.out.println("wtf");
         }
@@ -95,7 +100,10 @@ public class Chunklet implements Serializable {
     }
 
     protected boolean hasOpaqueBlock(int ix, int iy, int iz, boolean couldBeOutside) {
-        if (couldBeOutside && (ix >= csl || ix < 0 || iy >= csl || iy < 0 || iz >= csl || iz < 0)) {
+        if ((ix >= csl || ix < 0 || iy >= csl || iy < 0 || iz >= csl || iz < 0)) {
+            if(!couldBeOutside) {
+                return false;
+            }
             //check adjecent octree nodes
             int adjSide = -1;
             if (iy >= csl) {

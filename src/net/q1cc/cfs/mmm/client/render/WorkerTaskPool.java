@@ -45,10 +45,10 @@ public class WorkerTaskPool {
      */
     public boolean finishWorkers() {
         shutdown=true;
-        if(!tasks.isEmpty()){
+        while(!tasks.isEmpty()){
             synchronized(this){
                 try {
-                    wait();
+                    wait(1000);
                 } catch (InterruptedException ex) {}
             }
         }

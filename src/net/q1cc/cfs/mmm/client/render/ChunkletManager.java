@@ -4,7 +4,9 @@
  */
 package net.q1cc.cfs.mmm.client.render;
 
+import java.nio.ByteBuffer;
 import net.q1cc.cfs.mmm.client.Client;
+import net.q1cc.cfs.mmm.common.MemUtil;
 import net.q1cc.cfs.mmm.common.Player;
 import net.q1cc.cfs.mmm.common.math.Vec3f;
 import net.q1cc.cfs.mmm.common.world.Chunklet;
@@ -19,26 +21,21 @@ class ChunkletManager implements WorkerTask {
     public static int viewDistance; // in chunklets
     private static int viewDistanceM;
     private static int cslh;
+    static float maxWalkDistance;
     
     MainGLRender render;
     Player player;
-    float maxWalkDistance = Chunklet.csl2; //squared
     Vec3f lastLoadPlayerPosition;
     
     public ChunkletManager(MainGLRender render) {
         this.render = render;
-        this.player = render.player;
-        if(player==null){
-            //we are still loading
-        } else {
-            lastLoadPlayerPosition = new Vec3f(player.position);
-        }
         updateViewDistance(4);
     }
     
     public static void updateViewDistance(int distance) {
         viewDistance = distance;
         viewDistanceM = distance*Chunklet.csl2;
+        maxWalkDistance = viewDistanceM/2;
         cslh = Chunklet.csl/2;
     }
 
@@ -57,8 +54,9 @@ class ChunkletManager implements WorkerTask {
             player = render.player;
             if(player!=null){
                 lastLoadPlayerPosition = new Vec3f(player.position);
+                lastLoadPlayerPosition.x+=viewDistanceM; //hack to start right now
                 //render.taskPool.add(this);
-                return true;
+                //return true; //this prevents loading on first run
             } else {
                 //render.taskPool.add(this);
                 return true;
@@ -66,12 +64,11 @@ class ChunkletManager implements WorkerTask {
         }
         if(Vec3f.subtract(lastLoadPlayerPosition, player.position)
                 .lengthSquared() >= maxWalkDistance) {
-            //we have moved more than a chunklet, reload!
+            //we have moved, reload!
             lastLoadPlayerPosition = new Vec3f(player.position);
             walkTree(render.world.generateOctree);
             System.gc();
         }
-        //render.taskPool.add(this);
         //TODO add this task to the taskpool whenever the player moves.
         return true;
     }
@@ -90,7 +87,7 @@ class ChunkletManager implements WorkerTask {
                     walkTree(s);
                 }
             }
-        } //else {
+        } //else { //TODO delete and form new trees
             //if(oc.block==null){
             //    oc.parent.subtrees[oc.getSPID()]=null;
             //    oc.checkForSubtrees();
@@ -118,18 +115,16 @@ class ChunkletManager implements WorkerTask {
                 synchronized(render.chunksBuffered) {
                     render.chunksBuffered.remove(glc);
                 }
-                render.garbageCollector.vbosToDelete.add(glc.vboID);
-                glc.vboID=-1;
-                render.garbageCollector.vbosToDelete.add(glc.iboID);
-                glc.iboID=-1;
-                render.garbageCollector.vaosToDelete.add(glc.vaoID);
-                glc.vaoID=-1;
+                int vao = glc.vaoID;
+                int vbo = glc.vboID;
+                int ibo = glc.iboID;
+                glc.vaoID = glc.iboID = glc.vboID = -1;
+                render.garbageCollector.vaosToDelete.add(vao);
+                render.garbageCollector.vbosToDelete.add(vbo);
+                render.garbageCollector.vbosToDelete.add(ibo);
             }
             if(built) {
-                glc.vertexB=null;
-                glc.vertexBB=null;
-                glc.vertexIB=null;
-                glc.indexB=null;
+                glc.cleanup(false, false);
             }
         }
     }
