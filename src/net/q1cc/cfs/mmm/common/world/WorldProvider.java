@@ -34,14 +34,14 @@ public abstract class WorldProvider {
         double maxXZ = WorldOctree.getSidelength(WorldOctree.highestSubtreeLvl - 1);
         Vec3d sp = new Vec3d(r.nextDouble() * maxXZ, -15, r.nextDouble() * maxXZ);
         sp.x = Math.round(sp.x); sp.z = Math.round(sp.z);
-        //TODO move as high as needed to spawn properly
+        //TODO move down to ground
         //and select another point if this takes too long
-        //just for show, spawn a torch there.
+        //just for show, spawn a lightstone there.
         WorldOctree w = WorldOctree.getOctreeAt(sp, 0, world.generateOctree, true);
         if (w.block == null) {
             w.block = new Chunklet((int) w.position.x, (int) w.position.y, (int) w.position.z, w);
         }
-        w.block.blocks[Chunklet.getBlockIndex(sp)] = BlockInfo.get(BlockInfo.LIGHTSTONE);
+        w.block.blocks[Chunklet.getBlockIndex(sp)] = BlockInfo.create(BlockInfo.LIGHTSTONE);
         System.out.println("spawnpoint: " + sp);
         System.out.println("spawnTree: " + w);
         return sp;

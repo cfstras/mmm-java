@@ -24,7 +24,6 @@ public class EarthGenerator extends WorldGenerator {
     
     @Override
     public void generate(WorldOctree oc, int levels) {
-        //TODO get rid of that recursion, it's damn slow. stupid java.
         if(levels>0){
             for(int i=0;i<8;i++){
                 generate(oc.getSubtree(i,true),levels-1);
@@ -58,7 +57,7 @@ public class EarthGenerator extends WorldGenerator {
         //TODO do biomes here
         
         double h = sn.noise(x/80.0,y/80.0,z/80.0)-(y/70.0)-1;
-        if(h>0) return BlockInfo.get(BlockInfo.GRASS);
+        if(h>0) return BlockInfo.create(BlockInfo.GRASS);
         
         return null;
         //return generateHills(x,y,z,height,sn);
@@ -68,13 +67,13 @@ public class EarthGenerator extends WorldGenerator {
         //double dd = noise(x/1000.0, y/1000.0, z/1000.0)*20;
         double d = sn.noise(x/100.0, z/100.0)*1 - sn.noise(x/400.0+800, y/100.0, z/400.0+100)*3 - (y/10.0+1);
         if (d>0 && d<0.4) {
-            return BlockInfo.get(BlockInfo.GRASS);
+            return BlockInfo.create(BlockInfo.GRASS);
         } else if (d>=0.4 && d<1.0) {
-            return BlockInfo.get(BlockInfo.DIRT);
+            return BlockInfo.create(BlockInfo.DIRT);
         } else if (d>=1.0 && d<10) {
-            return BlockInfo.get(BlockInfo.ROCK);
+            return BlockInfo.create(BlockInfo.ROCK);
         } else if(d>=10) {
-            return BlockInfo.get(BlockInfo.SAND);
+            return BlockInfo.create(BlockInfo.SAND);
         }
         
         return null;

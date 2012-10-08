@@ -21,7 +21,7 @@ class ChunkletManager implements WorkerTask {
     public static int viewDist; // in chunklets
     private static int viewDistSqM;
     private static int cslh;
-    static float maxWalkDistance;
+    static float maxWalkDistanceSq;
     
     MainGLRender render;
     Player player;
@@ -29,13 +29,13 @@ class ChunkletManager implements WorkerTask {
     
     public ChunkletManager(MainGLRender render) {
         this.render = render;
-        updateViewDistance(6);
+        updateViewDistance(32);
     }
     
     public static void updateViewDistance(int distance) {
         viewDist = distance;
         viewDistSqM = distance*Chunklet.csl2;
-        maxWalkDistance = viewDistSqM/2;
+        maxWalkDistanceSq = Chunklet.csl2;
         cslh = Chunklet.csl/2;
     }
 
@@ -63,11 +63,11 @@ class ChunkletManager implements WorkerTask {
             }
         }
         if(Vec3f.subtract(lastLoadPlayerPosition, player.position)
-                .lengthSquared() >= maxWalkDistance) {
+                .lengthSquared() >= maxWalkDistanceSq) {
             //we have moved, reload!
             lastLoadPlayerPosition = new Vec3f(player.position);
             walkTree(render.world.generateOctree);
-            System.gc();
+            //System.gc(); //TODO do some gc after removing chunks, or not.
         }
         //TODO add this task to the taskpool whenever the player moves.
         return true;
@@ -91,7 +91,6 @@ class ChunkletManager implements WorkerTask {
             //if(oc.block==null){
             //    oc.parent.subtrees[oc.getSPID()]=null;
             //    oc.checkForSubtrees();
-            //    //TODO delete up
             //}
         //}
     }
@@ -104,28 +103,10 @@ class ChunkletManager implements WorkerTask {
         }
         if(c instanceof GLChunklet) {
             glc = (GLChunklet)c;
-            boolean loaded = glc.buffered;
-            boolean built = glc.built;
-            synchronized(oc){
-                glc.buffered=false;
-                glc.built=false;
-                oc.block=null;
-            }
-            if(loaded){
-                synchronized(render.chunksBuffered) {
-                    render.chunksBuffered.remove(glc);
-                }
-                int vao = glc.vaoID;
-                int vbo = glc.vboID;
-                int ibo = glc.iboID;
-                glc.vaoID = glc.iboID = glc.vboID = -1;
-                render.garbageCollector.vaosToDelete.add(vao);
-                render.garbageCollector.vbosToDelete.add(vbo);
-                render.garbageCollector.vbosToDelete.add(ibo);
-            }
-            if(built) {
-                glc.cleanup(false, false);
-            }
+            glc.cleanupVRAMCache();
+            glc.cleanupCache();
+        } else {
+            c = null;
         }
     }
 
@@ -136,17 +117,11 @@ class ChunkletManager implements WorkerTask {
             render.world.worldProvider.provideSubtree(oc, mid);
         } else if(c instanceof GLChunklet) {
             glc = (GLChunklet)c;
-            if(!glc.buffered && glc.built) {
-                render.chunksToBuffer.add(glc);
-            }
-            // should not be needed to put me on the build stack,
-            //who loads a chunklet without requesting build?
-            //TODO check this is on build taskpool (or not)
-            //render.taskPool.add(glc);
+            glc.build();
         } else {
             glc = new GLChunklet(c);
             oc.block=glc;
-            render.taskPool.add(glc);
+            glc.build();
         }
     }
     

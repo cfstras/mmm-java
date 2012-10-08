@@ -27,6 +27,7 @@ public class MemUtil {
      * @return a ByteBuffer or null if memory is low
      */
     public static ByteBuffer getBuffer(int minSize) {
+        //TODO optimize performance with a binary tree or similiar
         ByteBuffer buffer=null;
         synchronized(buffers) {
             Iterator<ByteBuffer> it = buffers.iterator();

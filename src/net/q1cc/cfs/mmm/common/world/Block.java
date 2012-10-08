@@ -5,6 +5,7 @@
 package net.q1cc.cfs.mmm.common.world;
 
 import java.io.Serializable;
+import net.q1cc.cfs.mmm.common.blocks.BlockInfo;
 import org.lwjgl.util.Color;
 
 /**
@@ -94,7 +95,6 @@ public class Block implements Cloneable, Serializable{
     @Override
     public String toString() {
         //return "B"+blockID+","+ (isSolid?"solid,":"")+"emits="+brightness+",light="+lightLevel+",c="+color.toString();
-        //TODO use blockInfo for this
-        return "B."+blockID;
+        return "B"+BlockInfo.blocks[blockID].toString();
     }
 }

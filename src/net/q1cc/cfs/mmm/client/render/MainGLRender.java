@@ -8,6 +8,7 @@ import java.nio.FloatBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Set;
 import java.util.Vector;
@@ -24,6 +25,7 @@ import org.lwjgl.input.Keyboard;
 import org.lwjgl.input.Mouse;
 import org.lwjgl.opengl.*;
 import static org.lwjgl.opengl.GL11.*;
+import static org.lwjgl.opengl.GL12.GL_TEXTURE_MAX_LEVEL;
 import static org.lwjgl.opengl.GL13.GL_TEXTURE0;
 import static org.lwjgl.opengl.GL13.glActiveTexture;
 import static org.lwjgl.opengl.GL15.*;
@@ -40,7 +42,7 @@ public class MainGLRender extends Thread {
     public WorkerTaskPool taskPool = Client.instance.taskPool;
     
     ConcurrentLinkedDeque<GLChunklet> chunksToBuffer = new ConcurrentLinkedDeque<GLChunklet>();
-    Set<GLChunklet> chunksBuffered = Collections.synchronizedSet(new HashSet<GLChunklet>());
+    final Set<GLChunklet> chunksBuffered = Collections.synchronizedSet(new HashSet<GLChunklet>());
     private ChunkletManager chunkletManager;
     public GLGarbageCollector garbageCollector = new GLGarbageCollector();
     
@@ -286,14 +288,15 @@ public class MainGLRender extends Thread {
         blockTexture.bind();
         glUniform1i(uniBlockTex,0);
         
-        //TODO all the render methods here
         chunkletsRendered=0;
         synchronized(chunksBuffered) {
-            for(GLChunklet g:chunksBuffered) {
-                renderChunklet(g);
+            Iterator<GLChunklet> it = chunksBuffered.iterator();
+            while(it.hasNext()) {
+                if(!renderChunklet(it.next())){
+                    it.remove(); //return false means chunklet is not buffered anymore
+                }
             }
         }
-        //renderOctree(world.generateOctree);
         
         //System.out.println("chunklets: "+chunkletsRendered);
         //TODO HUD here
@@ -433,20 +436,13 @@ public class MainGLRender extends Thread {
     public void recursePrepare(WorldOctree oc, boolean reload){
         if(oc==null) return;
         if(oc.block!=null){
-            if(!reload){
-                if(!(oc.block instanceof GLChunklet)){
-                    GLChunklet n = new GLChunklet(oc.block);
-                    oc.block = n;
-                    taskPool.add(n);
-                } else {
-                    GLChunklet n = (GLChunklet) oc.block;
-                    if(!n.built){
-                        taskPool.add(n);
-                    }
-                }
+            if(!(oc.block instanceof GLChunklet)){
+                GLChunklet n = new GLChunklet(oc.block);
+                oc.block=n;
+                n.build();
             } else if(oc.block instanceof GLChunklet){
-                ((GLChunklet)oc.block).built=false;
-                taskPool.add((GLChunklet)oc.block);
+                GLChunklet n = (GLChunklet)oc.block;
+                n.build();
             }
         }
         if(!oc.hasSubtrees) return;
@@ -457,7 +453,8 @@ public class MainGLRender extends Thread {
     
     private void bufferChunk(GLChunklet cl) {
         synchronized(cl.parent){
-            if(!cl.built || cl.vertexB==null){
+            //TODO move this to GLChunklet to simplify synchronization
+            if(!cl.built || cl.vertexB==null || cl.empty==true || !cl.awaitingBuffering){
                 return;
             }
             //TODO check if we still need this chunk or if it's already too far away
@@ -479,7 +476,9 @@ public class MainGLRender extends Thread {
             cl.vboID = vboID;
             cl.vaoID = vaoID;
             cl.iboID = iboID;
-            cl.cleanup(true, true);
+            cl.awaitingBuffering=false;
+            cl.buffered=true;
+            cl.cleanupCache();
         }
         synchronized(chunksBuffered) {
             chunksBuffered.add(cl); //TODO move this to a new thread?
@@ -502,21 +501,28 @@ public class MainGLRender extends Thread {
         }
     }
     
-    private void renderChunklet(GLChunklet g) {
+    /**
+     * renders a GLChunklet to screen.
+     * needs to run in OpenGL thread
+     * @param the chunklet to draw
+     * @return false if chunklet is not buffered and should be removed
+     */
+    private boolean renderChunklet(GLChunklet g) {
         if (g.buffered && g.vaoID != -1 && g.blocksInside > 0) {
             Matrix4f posChunkMatn = new Matrix4f(posChunkMat);
             posChunkMatn.translate(new Vector3f(g.posX, g.posY, g.posZ));
             posChunkMatn.store(posChunkMatB);
             posChunkMatB.flip();
             glUniformMatrix4(uniPosChunkMat, false, posChunkMatB);
-
             //render this
             glBindVertexArray(g.vaoID);
             glDrawElements(GL_TRIANGLES, g.indCount, GL_UNSIGNED_INT, 0);
-            //TODO if rendering is fine, remove this call (leave it to debug)
+            //TODO if rendering is fine, remove glBind*(0) calls
             glBindVertexArray(0);
             chunkletsRendered++;
+            return true;
         }
+        return false;
     }
 
     private static int lastError=0;
@@ -541,7 +547,7 @@ public class MainGLRender extends Thread {
         displayMode = Display.getDisplayMode();
         glViewport(0, 0, displayMode.getWidth(), displayMode.getHeight());
         System.out.println(displayMode);
-        projMat = getProjection(125,
+        projMat = getProjection(90,
                 (float) displayMode.getWidth() / (float) displayMode.getHeight(),
                 0.1f, 1000.0f);
         projMatB = BufferUtils.createFloatBuffer(16);
@@ -581,7 +587,7 @@ public class MainGLRender extends Thread {
         try {
             glActiveTexture(GL_TEXTURE0);
             Texture b = texL.getTexture("/png/blocks.png", GL_TEXTURE_2D,GL_RGB,
-                    GL_LINEAR,GL_NEAREST);
+                    GL_NEAREST_MIPMAP_LINEAR,GL_NEAREST);
             //JOptionPane.showMessageDialog(Display.getParent(),"Texture loaded:"+b );
             if(b==null){
                 System.out.println("error: texture could not be loaded.");
@@ -590,6 +596,7 @@ public class MainGLRender extends Thread {
                 blockTexture=b;
                 b.bind();
                 glGenerateMipmap(GL_TEXTURE_2D);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 4); //for 16x16 textures
                 glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_CLAMP);
                 glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_CLAMP);
                 glBindTexture(GL_TEXTURE_2D,0);

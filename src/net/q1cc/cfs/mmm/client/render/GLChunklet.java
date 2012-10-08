@@ -63,11 +63,19 @@ public class GLChunklet extends Chunklet implements WorkerTask {
     public ByteBuffer indexBB;
     public IntBuffer indexB;
     
+    //state flags
     boolean building=false;
     boolean built=false;
     boolean empty=false;
     boolean buffered=false;
-    boolean update=false;
+    
+    //waiting operations
+    boolean awaitingBuild = false;
+    boolean awaitingCacheCleanup = false;
+    boolean awaitingBuffering = false;
+    boolean awaitingUpdate=false;
+    boolean awaitingVRAMCleanup=false;
+    
     
     /**
      * creates a GLChunklet from a given common chunklet.
@@ -101,15 +109,7 @@ public class GLChunklet extends Chunklet implements WorkerTask {
      * @param targetV the target vertex buffer, if one is avaliable.
      * @param targetI same for index buffer
      */
-    public boolean buildChunklet() {
-        synchronized (this) {
-            if (building) {
-                System.out.println(toString() + ": double invocation");
-                return true;
-            } else {
-                building=true;
-            }
-        }
+    private boolean buildChunklet() {
         
         //build chunk
         int vertexSize = 8;
@@ -127,8 +127,7 @@ public class GLChunklet extends Chunklet implements WorkerTask {
         
         if(indexBB==null || vertexBB==null) { // out of memory, delay generation
             priority = WorkerTask.PRIORITY_IDLE;
-            cleanup(false, false);
-            building=false;
+            doCleanupCache();
             return false;
         }
         
@@ -153,42 +152,126 @@ public class GLChunklet extends Chunklet implements WorkerTask {
 
         //done.
         indCount = indexB.position();
-        if(vertexPos!=0 || indCount!=0) {
-            System.out.println(toString()+": verts: "+vertexPos+ " inds: "+indCount+" t:"+Thread.currentThread().getName());
-        }
+        //if(vertexPos!=0 || indCount!=0) {
+        //    System.out.println(toString()+": verts: "+vertexPos+ " inds: "+indCount+" t:"+Thread.currentThread().getName());
+        //}
         
         if(vertexPos==0 || indCount == 0) {
             empty=true;
-            building=false;
-            cleanup(true, false);
+            doCleanupCache();
         } else {
             //TODO use a smaller buffer if this one is way too big
+            empty=false;
             vertexB.flip();
             indexB.flip();
             built = true;
-            Client.instance.renderer.chunksToBuffer.add(this);
         }
+        return true;
+    }
+    
+    @Override
+    public boolean doWork() {
+        synchronized(this) {
+            if(building) {
+                System.out.println("chunklet already working");
+                return false;
+            }
+            building=true;
+        }
+        //check flags
+        if(awaitingVRAMCleanup) {
+            buffered=false;
+            awaitingBuffering=false;
+            doCleanupVRAM();
+            awaitingVRAMCleanup=false;
+        }
+        if(awaitingCacheCleanup) {
+            built=false;
+            awaitingBuffering=false;
+            doCleanupCache();
+            awaitingCacheCleanup=false;
+        }
+        if(awaitingBuild) {
+            if( !built || (built&&awaitingUpdate)) {
+                if(buildChunklet()) {
+                    awaitingBuild=false;
+                    awaitingUpdate=false;
+                    awaitingBuffering=true;
+                    if(!empty) {
+                        Client.instance.renderer.chunksToBuffer.add(this);
+                    }
+                } else {
+                    //didn't get memory, replace on build queue.
+                    Client.instance.taskPool.add(this);
+                }
+            } else if(built&& !awaitingUpdate) {
+                System.out.println(toString()+" double build invocation");
+            }
+        }
+        
+        //if(awaitingUpdate) {
+        //TODO implement single block updates (how?)
+        //}
+        
         building=false;
         return true;
     }
     
-    
-    //boolean alreadyPostponed=false;
-    @Override
-    public boolean doWork() {
-        if(!built){
-            if(!buildChunklet()) {
-                //didn't get memory, replace on build queue.
-                Client.instance.taskPool.add(this);
-                //if(!alreadyPostponed) {
-                //    System.out.println("postponed.");
-                //    alreadyPostponed=true;
-                //}
+    /**
+     * schedules a cache cleanup.
+     * also cancels scheduling for buffering.
+     */
+    void cleanupCache() {
+        synchronized(this) {
+            if(built) {
+                if(!awaitingBuffering && !awaitingVRAMCleanup && !awaitingBuild
+                        && !awaitingUpdate && !awaitingCacheCleanup) {
+                    //we are most likely not in queue, put us in
+                    Client.instance.taskPool.add(this);
+                }
+                awaitingCacheCleanup=true;
             }
-            return true;
-        } else {
-            System.out.println(toString()+" is built, was called to build.");
-            return false;
+            if(awaitingBuffering) {
+                awaitingBuffering=false;
+                Client.instance.renderer.chunksToBuffer.remove(this);
+            }
+        }
+    }
+    
+    /**
+     * schedules a VRAM garbage collect.
+     */
+    void cleanupVRAMCache() {
+        synchronized(this) {
+            if(buffered) {
+                if(!awaitingBuffering && !awaitingVRAMCleanup && !awaitingBuild
+                        && !awaitingUpdate && !awaitingCacheCleanup) {
+                    //we are most likely not in queue, put us in
+                    Client.instance.taskPool.add(this);
+                }
+                awaitingVRAMCleanup = true;
+            }
+        }
+    }
+    
+    /**
+     * schedules this GLChunklet to build.
+     * also cancels scheduling for buffering.
+     */
+    void build() {
+        synchronized(this) {
+            if(!built) {
+                if(!awaitingBuffering && !awaitingVRAMCleanup && !awaitingBuild
+                        && !awaitingUpdate && !awaitingCacheCleanup) {
+                    //we are most likely not in queue, put us in
+                    Client.instance.taskPool.add(this);
+                }
+                awaitingBuild = true;
+                if(awaitingBuffering) {
+                    awaitingBuffering=false;
+                    Client.instance.renderer.chunksToBuffer.remove(this);
+                }
+            }
         }
     }
 
@@ -314,17 +397,7 @@ public class GLChunklet extends Chunklet implements WorkerTask {
         return vertexPos;
     }
     
-    public boolean cleanup(boolean setBuild, boolean setBuffered) {
-        synchronized(this) {
-            if(building) {
-                System.out.println("trying to cleanup chunklet which is building");
-                return false;
-            }
-            building=true;
-        }
-        built=setBuild;
-        buffered=setBuffered;
-        update=false;
+    private boolean doCleanupCache() {
         ByteBuffer ib = indexBB;
         ByteBuffer vb = vertexBB;
         indexBB = null;
@@ -338,7 +411,6 @@ public class GLChunklet extends Chunklet implements WorkerTask {
         if(vb!=null) {
             MemUtil.returnBuffer(vb);
         }
-        building=false;
         return true;
     }
     
@@ -348,6 +420,17 @@ public class GLChunklet extends Chunklet implements WorkerTask {
                 +"["+(built?"b":" ")+"]"
                 +"["+(buffered?"l":" ")+"]"
                 +"["+(building?"w":" ")+"]"
-                +"["+(update?"u":" ")+"]";
+                +"["+(awaitingBuffering?"ab":" ")+"]"; //TODO update flags
+    }
+
+    private void doCleanupVRAM() {
+        Client.instance.renderer.chunksBuffered.remove(this);
+        int vao = vaoID;
+        int vbo = vboID;
+        int ibo = iboID;
+        vaoID = iboID = vboID = -1;
+        Client.instance.renderer.garbageCollector.vaosToDelete.add(vao);
+        Client.instance.renderer.garbageCollector.vbosToDelete.add(vbo);
+        Client.instance.renderer.garbageCollector.vbosToDelete.add(ibo);
     }
 }
