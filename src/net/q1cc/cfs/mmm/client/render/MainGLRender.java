@@ -541,7 +541,7 @@ public class MainGLRender extends Thread {
         displayMode = Display.getDisplayMode();
         glViewport(0, 0, displayMode.getWidth(), displayMode.getHeight());
         System.out.println(displayMode);
-        projMat = getProjection(80,
+        projMat = getProjection(125,
                 (float) displayMode.getWidth() / (float) displayMode.getHeight(),
                 0.1f, 1000.0f);
         projMatB = BufferUtils.createFloatBuffer(16);

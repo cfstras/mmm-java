@@ -18,8 +18,8 @@ import net.q1cc.cfs.mmm.common.world.WorldOctree;
  */
 class ChunkletManager implements WorkerTask {
     
-    public static int viewDistance; // in chunklets
-    private static int viewDistanceM;
+    public static int viewDist; // in chunklets
+    private static int viewDistSqM;
     private static int cslh;
     static float maxWalkDistance;
     
@@ -33,9 +33,9 @@ class ChunkletManager implements WorkerTask {
     }
     
     public static void updateViewDistance(int distance) {
-        viewDistance = distance;
-        viewDistanceM = distance*Chunklet.csl2;
-        maxWalkDistance = viewDistanceM/2;
+        viewDist = distance;
+        viewDistSqM = distance*Chunklet.csl2;
+        maxWalkDistance = viewDistSqM/2;
         cslh = Chunklet.csl/2;
     }
 
@@ -54,7 +54,7 @@ class ChunkletManager implements WorkerTask {
             player = render.player;
             if(player!=null){
                 lastLoadPlayerPosition = new Vec3f(player.position);
-                lastLoadPlayerPosition.x+=viewDistanceM; //hack to start right now
+                lastLoadPlayerPosition.x+=viewDistSqM; //hack to start right now
                 //render.taskPool.add(this);
                 //return true; //this prevents loading on first run
             } else {
@@ -75,8 +75,8 @@ class ChunkletManager implements WorkerTask {
 
     private void walkTree(WorldOctree oc) {
         Vec3f mid = new Vec3f((float)oc.position.x+cslh,(float)oc.position.y+cslh,(float)oc.position.z+cslh);
-        float distance2 = Vec3f.subtract(lastLoadPlayerPosition,mid).lengthSquared();
-        if(distance2>viewDistanceM){
+        float distSq = Vec3f.subtract(lastLoadPlayerPosition,mid).lengthSquared();
+        if(distSq>viewDistSqM){
             removeNode(oc);
         } else {
             loadNode(oc,mid);
@@ -134,25 +134,20 @@ class ChunkletManager implements WorkerTask {
         Chunklet c = oc.block;
         if(c==null){
             render.world.worldProvider.provideSubtree(oc, mid);
-            return;
-        }
-        if(c instanceof GLChunklet) {
+        } else if(c instanceof GLChunklet) {
             glc = (GLChunklet)c;
-            if(glc.buffered) return;
-            if(glc.built) {
+            if(!glc.buffered && glc.built) {
                 render.chunksToBuffer.add(glc);
-                return;
             }
             // should not be needed to put me on the build stack,
             //who loads a chunklet without requesting build?
             //TODO check this is on build taskpool (or not)
             //render.taskPool.add(glc);
-            return;
+        } else {
+            glc = new GLChunklet(c);
+            oc.block=glc;
+            render.taskPool.add(glc);
         }
-        glc = new GLChunklet(c);
-        oc.block=glc;
-        render.taskPool.add(glc);
-        
     }
     
 }

@@ -56,8 +56,9 @@ abstract public class WorldGenerator extends WorldProvider {
      * @param levels 
      */
     public void generateInto(WorldOctree oc,Vec3f position, int toLevel) {
-        generate(oc,0);
-        if(toLevel<oc.subtreeLvl) {
+        if(toLevel==oc.subtreeLvl) {
+            generate(oc,toLevel);
+        } else if(toLevel<oc.subtreeLvl) {
             generateInto(WorldOctree.getOctreeAt(new Vec3d(position), oc.subtreeLvl-1, oc,true),position,toLevel);
         }
     }

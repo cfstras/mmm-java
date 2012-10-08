@@ -5,6 +5,7 @@
 package net.q1cc.cfs.mmm.common.world;
 
 import java.util.Random;
+import net.q1cc.cfs.mmm.client.render.GLChunklet;
 import net.q1cc.cfs.mmm.client.render.WorkerTaskPool;
 import net.q1cc.cfs.mmm.common.blocks.BlockInfo;
 import net.q1cc.cfs.mmm.common.math.SimplexNoise;
@@ -32,15 +33,11 @@ public class EarthGenerator extends WorldGenerator {
             }
         } else {
             if(oc.subtreeLvl!=0){
-                return; //don't generate anything higher.
+                return; //don't generate anything smaller.
             }
-            //if(oc.height>5 && oc.height+Chunklet.csl>5){
-            //    oc.block=null;
-            //}
-            //else {
-                oc.block = new Chunklet((int)oc.position.x,(int)oc.position.y,(int)oc.position.z,oc);
-                generate(oc.block);
-            //}
+            //TODO create a GLChunklet only if we are client
+            oc.block = new GLChunklet((int)oc.position.x,(int)oc.position.y,(int)oc.position.z,oc);
+            generate(oc.block);
         } 
         oc.isGenerated=true;
     }
