@@ -16,7 +16,7 @@ import org.lwjgl.BufferUtils;
  */
 public class MemUtil {
     
-    final static ConcurrentLinkedDeque<ByteBuffer> buffers = new ConcurrentLinkedDeque<ByteBuffer>();
+    final static LinkedList<ByteBuffer> buffers = new LinkedList<ByteBuffer>();
     
     static boolean outOfMemory = false;
     
@@ -39,8 +39,8 @@ public class MemUtil {
                         buffer = b;
                         it.remove();
                     } else if(cap<buffer.capacity() && cap>=minSize) {
-                        buffers.addFirst(buffer);
                         it.remove();
+                        buffers.addFirst(buffer);
                     }
                 //}
                 if(buffer.capacity() == minSize) {
@@ -64,10 +64,9 @@ public class MemUtil {
     }
     
     public static void returnBuffer(ByteBuffer buffer) {
-        buffer.rewind();
-        buffer.limit(buffer.capacity());
+        buffer.clear();
         synchronized(buffers) {
-            buffers.addFirst(buffer);
+            buffers.add(buffer);
         }
     }
 }
