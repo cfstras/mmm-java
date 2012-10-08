@@ -30,20 +30,20 @@ public class MemUtil {
         ByteBuffer buffer=null;
         synchronized(buffers) {
             Iterator<ByteBuffer> it = buffers.iterator();
-
             while(it.hasNext()) {
                 ByteBuffer b = it.next();
                 //synchronized(b) {
-                    int cap = b.capacity();
-                    if(buffer == null && cap>=minSize) {
+                    int nextCap = b.capacity();
+                    if(buffer == null && nextCap>=minSize) {
                         buffer = b;
                         it.remove();
-                    } else if(cap<buffer.capacity() && cap>=minSize) {
+                    } else if(buffer !=null && nextCap<buffer.capacity() && nextCap>=minSize) {
                         it.remove();
                         buffers.addFirst(buffer);
+                        buffer = b;
                     }
                 //}
-                if(buffer.capacity() == minSize) {
+                if(buffer !=null && buffer.capacity() == minSize) {
                     break;
                 }
             }

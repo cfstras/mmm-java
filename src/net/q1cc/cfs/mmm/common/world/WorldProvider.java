@@ -33,6 +33,7 @@ public abstract class WorldProvider {
         r.setSeed(seed ^ 20343817869306411L); //some random.org value
         double maxXZ = WorldOctree.getSidelength(WorldOctree.highestSubtreeLvl - 1);
         Vec3d sp = new Vec3d(r.nextDouble() * maxXZ, -15, r.nextDouble() * maxXZ);
+        sp.x = Math.round(sp.x); sp.z = Math.round(sp.z);
         //TODO move as high as needed to spawn properly
         //and select another point if this takes too long
         //just for show, spawn a torch there.

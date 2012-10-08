@@ -115,6 +115,7 @@ public class MainGLRender extends Thread {
     }
     
     private void loadShaders() {
+        //TODO make shader helper class
         String[] fragSource = null;
         String[] vertSource = null;
         try {
@@ -418,7 +419,7 @@ public class MainGLRender extends Thread {
         
         if (time - lastFPS > 1000) {
             Display.setTitle(windowTitle+ " FPS: " + fps +" deltaT: "+deltaTime+
-                    " rot: "+player.rotation+ " c: "+chunkletsRendered);
+                    " rot: "+player.rotation+ "pos:"+player.position+" c: "+chunkletsRendered);
             fps = 0; //reset the FPS counter
             lastFPS += 1000; //add one second
         }

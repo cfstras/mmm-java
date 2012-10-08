@@ -78,8 +78,11 @@ public class World implements Serializable{
         this.spawnPoint=worldProvider.spawnPoint(); //call now, because spawnPoint sets a torch
         player=new Player();
         
-        player.position=new Vec3f(spawnPoint.add(Vec3d.UP.mult(2)));
-        
+        player.position=new Vec3f(spawnPoint);
+        player.position.y+=1+1.72f; //1m for the block, 1.72m player height
+        player.position.x+=0.5f;
+        player.position.z+=0.5f;
+        player.rotation.y+=30; //look slightly down
         if(changedOctree==null){
             initChangedOctree();
         }

@@ -29,7 +29,7 @@ class ChunkletManager implements WorkerTask {
     
     public ChunkletManager(MainGLRender render) {
         this.render = render;
-        updateViewDistance(4);
+        updateViewDistance(6);
     }
     
     public static void updateViewDistance(int distance) {
