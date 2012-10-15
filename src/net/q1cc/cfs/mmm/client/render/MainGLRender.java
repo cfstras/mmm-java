@@ -10,6 +10,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Set;
 import java.util.Vector;
 import java.util.concurrent.ConcurrentLinkedDeque;
@@ -42,7 +43,7 @@ public class MainGLRender extends Thread {
     public WorkerTaskPool taskPool = Client.instance.taskPool;
     
     ConcurrentLinkedDeque<GLChunklet> chunksToBuffer = new ConcurrentLinkedDeque<GLChunklet>();
-    final Set<GLChunklet> chunksBuffered = Collections.synchronizedSet(new HashSet<GLChunklet>());
+    final List<GLChunklet> chunksBuffered = Collections.synchronizedList(new LinkedList<GLChunklet>());
     private ChunkletManager chunkletManager;
     public GLGarbageCollector garbageCollector = new GLGarbageCollector();
     
@@ -233,9 +234,6 @@ public class MainGLRender extends Thread {
         }
         if(left||right||forward||back){
             player.move(forward, left, right, back, false);
-            //if(taskPool.tasks.contains(chunkletManager)) {
-            //    taskPool.add(chunkletManager);
-            //}
             taskPool.add(chunkletManager);
         }
         
@@ -291,10 +289,14 @@ public class MainGLRender extends Thread {
         chunkletsRendered=0;
         synchronized(chunksBuffered) {
             Iterator<GLChunklet> it = chunksBuffered.iterator();
+            GLChunklet g;
             while(it.hasNext()) {
-                if(!renderChunklet(it.next())){
-                    it.remove(); //return false means chunklet is not buffered anymore
+                g=it.next();
+                if(!renderChunklet(g)){
+                    //it.remove(); //return false means chunklet is not buffered anymore
+                    taskPool.add(g);
                 }
+                //chunkletManager.checkNode(g.parent);
             }
         }
         
@@ -363,7 +365,7 @@ public class MainGLRender extends Thread {
         createWindow();
         Mouse.setGrabbed(false);
         initGL();
-        taskPool.add(chunkletManager);
+        taskPool.add(chunkletManager); //TODO
     }
 
     private void initGL() {
@@ -508,7 +510,7 @@ public class MainGLRender extends Thread {
      * @return false if chunklet is not buffered and should be removed
      */
     private boolean renderChunklet(GLChunklet g) {
-        if (g.buffered && g.vaoID != -1 && g.blocksInside > 0) {
+        if (g.buffered && g.vaoID != -1 && g.blocksInside > 0 && !g.awaitingVRAMCleanup) {
             Matrix4f posChunkMatn = new Matrix4f(posChunkMat);
             posChunkMatn.translate(new Vector3f(g.posX, g.posY, g.posZ));
             posChunkMatn.store(posChunkMatB);

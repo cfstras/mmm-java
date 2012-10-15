@@ -233,7 +233,7 @@ public class GLChunklet extends Chunklet implements WorkerTask {
             }
             if(awaitingBuffering) {
                 awaitingBuffering=false;
-                Client.instance.renderer.chunksToBuffer.remove(this);
+                //Client.instance.renderer.chunksToBuffer.remove(this);
             }
         }
     }
@@ -269,7 +269,7 @@ public class GLChunklet extends Chunklet implements WorkerTask {
                 awaitingBuild = true;
                 if(awaitingBuffering) {
                     awaitingBuffering=false;
-                    Client.instance.renderer.chunksToBuffer.remove(this);
+                    //Client.instance.renderer.chunksToBuffer.remove(this);
                 }
             }
         }

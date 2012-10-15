@@ -93,7 +93,7 @@ public class WorkerTaskPool {
         return true;
     }
     
-    public WorkerTask pop(){
+    public synchronized WorkerTask pop(){
         if(tasks.isEmpty()) 
             return null;
         return tasks.remove();

@@ -20,7 +20,7 @@ public class Chunklet implements Serializable {
     /**
      * whether to check faces at the chunklets boundary for occlusion.
      */
-    public static boolean checkOutsideOcclusion = false;
+    public static boolean checkOutsideOcclusion = true;
     
     /**
      * the side length of a chunklet. use this instead of 16, if it ever changes.

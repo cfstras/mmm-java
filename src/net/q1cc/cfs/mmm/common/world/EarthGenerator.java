@@ -35,7 +35,9 @@ public class EarthGenerator extends WorldGenerator {
                 return; //don't generate anything smaller.
             }
             //TODO create a GLChunklet only if we are client
-            oc.block = new GLChunklet((int)oc.position.x,(int)oc.position.y,(int)oc.position.z,oc);
+            if(oc.block==null) {
+                oc.block = new GLChunklet((int)oc.position.x,(int)oc.position.y,(int)oc.position.z,oc);
+            }
             generate(oc.block);
         } 
         oc.isGenerated=true;
