@@ -34,6 +34,32 @@ public class GLChunklet extends Chunklet implements WorkerTask {
     public static int texture_block_rows = 8;
     public static int texture_block_cols = 8;
     
+    
+    public static final int FLOAT_BYTES = 4;
+    public static final int SHORT_BYTES = 2;
+    public static final int INT_BYTES = 4;
+    
+    public static final int VERTEX_SIZE_FLOATS = 8;
+    public static final int VERTEX_SIZE_BYTES = VERTEX_SIZE_FLOATS * FLOAT_BYTES;
+    
+    /** Vertex Layout:
+     * float posX, posY, posZ;
+     * float texU, texV;
+     * byte colR, colG, colB, colA;
+     * float padding,padding2;
+     * => 8 * 4 bytes
+     */
+    
+    /** Proposed Vertex Layout:
+     * byte posX, posY, posZ; //4 bit block position, 4 bit for detailed meshes
+     * byte colR, colG, colB;
+     * short texID; //determines texture z
+     * byte texU, texV;
+     * short padding;
+     * float padding2;
+     * => 8 * 2 bytes
+     */
+    
     /**
      * The VBO ID for this chunklet, if it is in VRAM.
      * if not, this is -1.
@@ -56,6 +82,8 @@ public class GLChunklet extends Chunklet implements WorkerTask {
      * number of indices in index buffer
      */
     public int indCount;
+    
+    public int vertCount;
     
     public FloatBuffer vertexB;
     public IntBuffer vertexIB;
@@ -155,8 +183,11 @@ public class GLChunklet extends Chunklet implements WorkerTask {
         //if(vertexPos!=0 || indCount!=0) {
         //    System.out.println(toString()+": verts: "+vertexPos+ " inds: "+indCount+" t:"+Thread.currentThread().getName());
         //}
+        vertCount = vertexB.position();
         
-        if(vertexPos==0 || indCount == 0) {
+        memorySize = VERTEX_SIZE_BYTES * vertCount + indCount * INT_BYTES;
+        
+        if(vertCount==0 || indCount == 0) {
             empty=true;
             doCleanupCache();
         } else {

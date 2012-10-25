@@ -349,8 +349,8 @@ public class MainGLRender extends Thread {
             //attrib = attrib.withForwardCompatible(true);
             //attrib = attrib.withProfileCompatibility(true);
             //attrib = attrib.withDebug(true);
-            PixelFormat pf = new PixelFormat(8,16,0,1);
-            Display.create(pf);
+            //PixelFormat pf = new PixelFormat(8,16,0,1);
+            Display.create();
             
         } catch (LWJGLException ex) {
             ex.printStackTrace();
