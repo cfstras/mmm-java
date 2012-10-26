@@ -251,6 +251,7 @@ public class MainGLRender extends Thread {
             
         } else if(Mouse.isButtonDown(0) && !Mouse.isGrabbed()) {
             Mouse.setGrabbed(true);
+            Mouse.setClipMouseCoordinatesToWindow(false);
         }
         
     }
@@ -333,9 +334,11 @@ public class MainGLRender extends Thread {
         try {
             Display.setFullscreen(fullscreen);
             DisplayMode d[] = Display.getAvailableDisplayModes();
+            
             displayMode=d[0];
             for (int i = 1; i < d.length; i++) {
-                if (d[i].getWidth() == 1440
+                System.out.println(d[i]);
+                if (d[i].getWidth() == 800
                     && d[i].getBitsPerPixel() == 32) {
                     displayMode = d[i];
                     break;
@@ -466,8 +469,8 @@ public class MainGLRender extends Thread {
             glBindVertexArray(vaoID);
             glBindBuffer(GL_ARRAY_BUFFER, vboID);
             glBufferData(GL_ARRAY_BUFFER, cl.vertexB, GL_STATIC_DRAW);
-            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,iboID);
-            glBufferData(GL_ELEMENT_ARRAY_BUFFER,cl.indexB,GL_STATIC_DRAW);
+            //glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,iboID);
+            //glBufferData(GL_ELEMENT_ARRAY_BUFFER,cl.indexB,GL_STATIC_DRAW);
             glEnableVertexAttribArray(attPos);
             glEnableVertexAttribArray(attColor);
             glEnableVertexAttribArray(attTex);
@@ -477,7 +480,7 @@ public class MainGLRender extends Thread {
             glBindVertexArray(0);
             cl.vboID = vboID;
             cl.vaoID = vaoID;
-            cl.iboID = iboID;
+            //cl.iboID = iboID;
             cl.awaitingBuffering=false;
             cl.buffered=true;
             cl.cleanupCache();
@@ -518,7 +521,8 @@ public class MainGLRender extends Thread {
             glUniformMatrix4(uniPosChunkMat, false, posChunkMatB);
             //render this
             glBindVertexArray(g.vaoID);
-            glDrawElements(GL_TRIANGLES, g.indCount, GL_UNSIGNED_INT, 0);
+            //glDrawElements(GL_TRIANGLES, g.indCount, GL_UNSIGNED_INT, 0);
+            glDrawArrays(GL_TRIANGLES, 0, g.vertCount);
             //TODO if rendering is fine, remove glBind*(0) calls
             glBindVertexArray(0);
             chunkletsRendered++;

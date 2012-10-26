@@ -8,6 +8,7 @@ import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
+import java.nio.ShortBuffer;
 import net.q1cc.cfs.mmm.client.Client;
 import net.q1cc.cfs.mmm.common.MemUtil;
 import net.q1cc.cfs.mmm.common.blocks.BlockInfo;
@@ -55,8 +56,8 @@ public class GLChunklet extends Chunklet implements WorkerTask {
      * byte colR, colG, colB;
      * short texID; //determines texture z
      * byte texU, texV;
-     * short padding;
-     * float padding2;
+     * byte padding,padding;
+     * byte padding,padding,padding,padding;
      * => 8 * 2 bytes
      */
     
@@ -65,7 +66,7 @@ public class GLChunklet extends Chunklet implements WorkerTask {
      * if not, this is -1.
      */
     public int vboID=-1;
-    public int iboID=-1;
+    //public int iboID=-1;
     
     /**
      * The VAO ID for render setup of this chunklet.
@@ -81,15 +82,16 @@ public class GLChunklet extends Chunklet implements WorkerTask {
     /**
      * number of indices in index buffer
      */
-    public int indCount;
+    //public int indCount;
     
     public int vertCount;
     
     public FloatBuffer vertexB;
     public IntBuffer vertexIB;
     public ByteBuffer vertexBB;
-    public ByteBuffer indexBB;
-    public IntBuffer indexB;
+    public ShortBuffer vertexSB;
+    //public ByteBuffer indexBB;
+    //public IntBuffer indexB;
     
     //state flags
     boolean building=false;
@@ -140,36 +142,37 @@ public class GLChunklet extends Chunklet implements WorkerTask {
     private boolean buildChunklet() {
         
         //build chunk
-        int vertexSize = 8;
-        int indexSize = 1;
+        //int vertexSize = 8;
+        //int indexSize = 1;
         int vertices = 0;
-        int indices = 0;
+        //int indices = 0;
         int vertexPos=0; 
         Block b;
-        blocksInside=Chunklet.csl2*Chunklet.csl;// asume a full chunk
-        vertices = 4 * blocksInside*6;
-        indices = 6 * blocksInside * 4;
+        blocksInside=Chunklet.csl2*Chunklet.csl;// assume a full chunk
+        vertices = 4 * blocksInside * 6;
+        //indices = 6 * blocksInside * 4;
         
-        indexBB = MemUtil.getBuffer(indices * indexSize * 4);
-        vertexBB = MemUtil.getBuffer(vertices * vertexSize * 4);
+        //indexBB = MemUtil.getBuffer(indices * indexSize * 4);
+        vertexBB = MemUtil.getBuffer(vertices * VERTEX_SIZE_BYTES);
         
-        if(indexBB==null || vertexBB==null) { // out of memory, delay generation
+        if(/*indexBB==null ||*/ vertexBB==null) { // out of memory, delay generation
             priority = WorkerTask.PRIORITY_IDLE;
             doCleanupCache();
             return false;
         }
         
-        indexBB.rewind(); // should not be needed
-        vertexBB.rewind();
+        //indexBB.rewind(); // should not be needed
+        vertexBB.clear();
         vertexIB = vertexBB.asIntBuffer();
         vertexB = vertexBB.asFloatBuffer();
-        indexB = indexBB.asIntBuffer();
+        vertexSB = vertexBB.asShortBuffer();
+        //indexB = indexBB.asIntBuffer();
         
         //start filling
         vertexPos=0;
-        for (int ix=0; ix<Chunklet.csl; ix++) {
-            for(int iy=0; iy<Chunklet.csl; iy++) {
-                for(int iz=0; iz<Chunklet.csl; iz++) {
+        for (byte ix=0; ix<Chunklet.csl; ix++) {
+            for(byte iy=0; iy<Chunklet.csl; iy++) {
+                for(byte iz=0; iz<Chunklet.csl; iz++) {
                     b = blocks[ix + iy*Chunklet.csl + iz*Chunklet.csl2];
                     if(b!=null){
                         vertexPos = block(b,ix,iy,iz,vertexPos,true);
@@ -179,22 +182,22 @@ public class GLChunklet extends Chunklet implements WorkerTask {
         }//         forloops
 
         //done.
-        indCount = indexB.position();
+        //indCount = indexB.position();
         //if(vertexPos!=0 || indCount!=0) {
         //    System.out.println(toString()+": verts: "+vertexPos+ " inds: "+indCount+" t:"+Thread.currentThread().getName());
         //}
-        vertCount = vertexB.position();
+        vertCount = vertexBB.position()/VERTEX_SIZE_BYTES;
         
-        memorySize = VERTEX_SIZE_BYTES * vertCount + indCount * INT_BYTES;
+        memorySize = VERTEX_SIZE_BYTES * vertCount;// + indCount * INT_BYTES;
         
-        if(vertCount==0 || indCount == 0) {
+        if(vertCount==0 /*|| indCount == 0*/) {
             empty=true;
             doCleanupCache();
         } else {
             //TODO use a smaller buffer if this one is way too big
             empty=false;
             vertexB.flip();
-            indexB.flip();
+            //indexB.flip();
             built = true;
         }
         return true;
@@ -311,94 +314,101 @@ public class GLChunklet extends Chunklet implements WorkerTask {
         return priority;
     }
 
-    private int side(Block bl, int ix, int iy, int iz, int side, int vertexPos) {
+    private int side(Block bl, byte ix, byte iy, byte iz, int side, int vertexPos) {
         if(side==0) {//top
-            vertexB.put(ix).put(iy+1).put(iz+1);
-            vert(0,1,side,bl);
-            vertexB.put(ix+1).put(iy+1).put(iz+1);
-            vert(1,1,side,bl);
-            vertexB.put(ix+1).put(iy+1).put(iz);
-            vert(1,0,side,bl);
-            vertexB.put(ix).put(iy+1).put(iz);
-            vert(0,0,side,bl);
-            vertexPos += 4;
+            vert(0,ix,0,iy,1,iz,1,side,bl);
+            vert(1,ix,1,iy,1,iz,1,side,bl);
+            vert(2,ix,0,iy,1,iz,0,side,bl);
+            vert(1,ix,1,iy,1,iz,1,side,bl);
+            vert(3,ix,1,iy,1,iz,0,side,bl);
+            vert(2,ix,0,iy,1,iz,0,side,bl);
         } else if(side==1) {//bot
-            vertexB.put(ix).put(iy).put(iz);
-            vert(0,1,side,bl);
-            vertexB.put(ix+1).put(iy).put(iz);
-            vert(1,1,side,bl);
-            vertexB.put(ix+1).put(iy).put(iz+1);
-            vert(1,0,side,bl);
-            vertexB.put(ix).put(iy).put(iz+1);
-            vert(0,0,side,bl);
-            vertexPos += 4;
+            vert(0,ix,0,iy,0,iz,0,side,bl);
+            vert(1,ix,1,iy,0,iz,0,side,bl);
+            vert(2,ix,0,iy,0,iz,1,side,bl);
+            vert(1,ix,1,iy,0,iz,0,side,bl);
+            vert(3,ix,1,iy,0,iz,1,side,bl);
+            vert(2,ix,0,iy,0,iz,1,side,bl);
         } else if(side==2) {//left
-            vertexB.put(ix).put(iy).put(iz);
-            vert(0,1,side,bl);
-            vertexB.put(ix).put(iy).put(iz+1);
-            vert(1,1,side,bl);
-            vertexB.put(ix).put(iy+1).put(iz+1);
-            vert(1,0,side,bl);
-            vertexB.put(ix).put(iy+1).put(iz);
-            vert(0,0,side,bl);
-            vertexPos += 4;
+            vert(0,ix,0,iy,0,iz,0,side,bl);
+            vert(1,ix,0,iy,0,iz,1,side,bl);
+            vert(2,ix,0,iy,1,iz,0,side,bl);
+            vert(1,ix,0,iy,0,iz,1,side,bl);
+            vert(3,ix,0,iy,1,iz,1,side,bl);
+            vert(2,ix,0,iy,1,iz,0,side,bl);
         } else if(side==3) {//right
-            vertexB.put(ix+1).put(iy).put(iz+1);
-            vert(0,1,side,bl);
-            vertexB.put(ix+1).put(iy).put(iz);
-            vert(1,1,side,bl);
-            vertexB.put(ix+1).put(iy+1).put(iz);
-            vert(1,0,side,bl);
-            vertexB.put(ix+1).put(iy+1).put(iz+1);
-            vert(0,0,side,bl);
-            vertexPos += 4;
+            vert(0,ix,1,iy,0,iz,1,side,bl);
+            vert(1,ix,1,iy,0,iz,0,side,bl);
+            vert(2,ix,1,iy,1,iz,1,side,bl);
+            vert(1,ix,1,iy,0,iz,0,side,bl);
+            vert(3,ix,1,iy,1,iz,0,side,bl);
+            vert(2,ix,1,iy,1,iz,1,side,bl);
         } else if(side==4) {//front
-            vertexB.put(ix).put(iy).put(iz+1);
-            vert(0,1,side,bl);
-            vertexB.put(ix+1).put(iy).put(iz+1);
-            vert(1,1,side,bl);
-            vertexB.put(ix+1).put(iy+1).put(iz+1);
-            vert(1,0,side,bl);
-            vertexB.put(ix).put(iy+1).put(iz+1);
-            vert(0,0,side,bl);
-            vertexPos += 4;
+            vert(0,ix,0,iy,0,iz,1,side,bl);
+            vert(1,ix,1,iy,0,iz,1,side,bl);
+            vert(2,ix,0,iy,1,iz,1,side,bl);
+            vert(1,ix,1,iy,0,iz,1,side,bl);
+            vert(3,ix,1,iy,1,iz,1,side,bl);
+            vert(2,ix,0,iy,1,iz,1,side,bl);
         } else if(side==5) {//back
-            vertexB.put(ix+1).put(iy).put(iz);
-            vert(0,1,side,bl);
-            vertexB.put(ix).put(iy).put(iz);
-            vert(1,1,side,bl);
-            vertexB.put(ix).put(iy+1).put(iz);
-            vert(1,0,side,bl);
-            vertexB.put(ix+1).put(iy+1).put(iz);
-            vert(0,0,side,bl);
-            vertexPos += 4;
+            vert(0,ix,1,iy,0,iz,0,side,bl);
+            vert(1,ix,0,iy,0,iz,0,side,bl);
+            vert(2,ix,1,iy,1,iz,0,side,bl);
+            vert(1,ix,0,iy,0,iz,0,side,bl);
+            vert(3,ix,0,iy,1,iz,0,side,bl);
+            vert(2,ix,1,iy,1,iz,0,side,bl);
         }
-        
+        vertexPos += 6;
         return vertexPos;
     }
     
-    private void vert(int u, int v, int side, Block bl){
-        int texID = BlockInfo.blocks[bl.blockID].getTexID(side);
-        int row = texID/texture_block_cols;
-        int column = texID%texture_block_cols;
-        vertexB.put((float)(u)/texture_block_cols+(float)(column)/texture_block_cols)
-                .put((float)(v)/texture_block_rows+(float)(row)/texture_block_rows);
-        vertexIB.position(vertexB.position());
-        //Color
+    private void vert(int id,byte x, int ox, byte y,int oy, byte z, int oz, int side, Block bl){
+        /* *
+         * id is the id of the vertex.
+         *  __  id |u |v
+         * 2  3  0 |0  1
+         * |\ |  1 |1  1
+         * | \|  2 |0  0
+         * 0__1  3 |1  0
+         */
+        
+        vertexBB.put((byte)(x+ox)).put((byte)(y+oy)).put((byte)(x+oz));
+        
         ReadableColor c = BlockInfo.blocks[bl.blockID].getColor();
         if(side!=0)c = Color.WHITE;
-        int col = 0;
-        //TODO use the byte buffer here, makes more sense.
-        col |= c.getRed();              //r
-        col |= c.getGreen() << (1 * 8); //g
-        col |= c.getBlue() << (2 * 8);  //b
-        col |= c.getAlpha() << (3 * 8); //a
-        vertexIB.put(col);
-        vertexB.position(vertexIB.position());
-        vertexB.put(1337).put(1338);
+        vertexBB.put(c.getRedByte());
+        vertexBB.put(c.getGreenByte());
+        vertexBB.put(c.getBlueByte());
+        
+        short texID = (short)BlockInfo.blocks[bl.blockID].getTexID(side);
+        vertexSB.position(vertexBB.position()/2);
+        vertexSB.put(texID);
+        vertexBB.position(vertexSB.position()*2);
+        byte u,v;
+        switch(id) {
+            case 0:
+                u=0; v=1; break;
+            case 1:
+                u=1; v=1; break;
+            case 2:
+                u=2; v=0; break;
+            case 3:
+                u=3; v=1; break;
+            default:
+                System.out.println("something went terribly wrong");
+                return;
+        }
+        
+        int row = texID/texture_block_cols;
+        int column = texID%texture_block_cols;
+        vertexBB.put((byte)(u/texture_block_cols+column/texture_block_cols))
+                .put((byte)(v/texture_block_rows+row/texture_block_rows));
+        
+        vertexBB.put((byte)0xca).put((byte)0xfe); //padding for fast memory fetches
+        vertexBB.put((byte)0xba).put((byte)0xbe).put((byte)0x10).put((byte)0x01);
     }
 
-    private int block(Block b, int ix, int iy, int iz, int vertexPos, boolean draw) {
+    private int block(Block b, byte ix, byte iy, byte iz, int vertexPos, boolean draw) {
         /*
          * 0 top    y+1
          * 1 bottom y-1
@@ -414,11 +424,11 @@ public class GLChunklet extends Chunklet implements WorkerTask {
         for(int i=0;i<6;i++) {
             if(!faceIsHidden(b,ix,iy,iz,i, uptodate)){
                 if(draw){
-                    indexB.put(vertexPos + 0).put(vertexPos + 1).put(vertexPos + 2);
-                    indexB.put(vertexPos + 0).put(vertexPos + 2).put(vertexPos + 3);
+                    //indexB.put(vertexPos + 0).put(vertexPos + 1).put(vertexPos + 2);
+                    //indexB.put(vertexPos + 0).put(vertexPos + 2).put(vertexPos + 3);
                     vertexPos = side(b, ix, iy, iz, i, vertexPos);
                 } else {
-                    vertexPos+=4; //reserve space
+                    vertexPos+=6; //reserve space
                 }
             }
         }
@@ -429,16 +439,17 @@ public class GLChunklet extends Chunklet implements WorkerTask {
     }
     
     private boolean doCleanupCache() {
-        ByteBuffer ib = indexBB;
+        //ByteBuffer ib = indexBB;
         ByteBuffer vb = vertexBB;
-        indexBB = null;
-        indexB=null;
+        //indexBB = null;
+        //indexB=null;
         vertexB = null;
         vertexIB = null;
         vertexBB = null;
-        if(ib!=null) {
-            MemUtil.returnBuffer(ib);
-        }
+        vertexSB = null;
+        //if(ib!=null) {
+        //    MemUtil.returnBuffer(ib);
+        //}
         if(vb!=null) {
             MemUtil.returnBuffer(vb);
         }
@@ -451,17 +462,19 @@ public class GLChunklet extends Chunklet implements WorkerTask {
                 +"["+(built?"b":" ")+"]"
                 +"["+(buffered?"l":" ")+"]"
                 +"["+(building?"w":" ")+"]"
-                +"["+(awaitingBuffering?"ab":" ")+"]"; //TODO update flags
+                +"["+(awaitingBuffering?"ab":" ")+"]"
+                +","+vertCount+"v,"+(memorySize)+"kb"
+                +";"; //TODO update flags
     }
 
     private void doCleanupVRAM() {
         Client.instance.renderer.chunksBuffered.remove(this);
         int vao = vaoID;
         int vbo = vboID;
-        int ibo = iboID;
-        vaoID = iboID = vboID = -1;
+        //int ibo = iboID;
+        vaoID /*= iboID*/ = vboID = -1;
         Client.instance.renderer.garbageCollector.vaosToDelete.add(vao);
         Client.instance.renderer.garbageCollector.vbosToDelete.add(vbo);
-        Client.instance.renderer.garbageCollector.vbosToDelete.add(ibo);
+        //Client.instance.renderer.garbageCollector.vbosToDelete.add(ibo);
     }
 }
