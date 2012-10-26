@@ -62,7 +62,7 @@ public class MainGLRender extends Thread {
     int basicShader;
     int attPos;
     int attTex;
-    //int attOrient;
+    int attTexID;
     int attColor;
     //int attBlock;
     
@@ -86,6 +86,7 @@ public class MainGLRender extends Thread {
      * the number of chunklets successfully rendered in the current frame.
      */
     private int chunkletsRendered;
+    private int vertsRendered;
     
     public MainGLRender(World world){
         this.world=world;
@@ -162,7 +163,7 @@ public class MainGLRender extends Thread {
         
         attPos = glGetAttribLocation(basicShader, "inPos");
         attTex = glGetAttribLocation(basicShader, "inTex");
-        //attOrient = glGetAttribLocation(basicShader, "inOrient");
+        attTexID = glGetAttribLocation(basicShader, "inTexID");
         attColor = glGetAttribLocation(basicShader, "inColor");
         //attBlock = glGetAttribLocation(basicShader, "inBlock");
         
@@ -288,6 +289,7 @@ public class MainGLRender extends Thread {
         glUniform1i(uniBlockTex,0);
         
         chunkletsRendered=0;
+        vertsRendered = 0;
         synchronized(chunksBuffered) {
             Iterator<GLChunklet> it = chunksBuffered.iterator();
             GLChunklet g;
@@ -295,7 +297,7 @@ public class MainGLRender extends Thread {
                 g=it.next();
                 if(!renderChunklet(g)){
                     //it.remove(); //return false means chunklet is not buffered anymore
-                    taskPool.add(g);
+                    //taskPool.add(g); //TODO fix this
                 }
                 //chunkletManager.checkNode(g.parent);
             }
@@ -427,7 +429,8 @@ public class MainGLRender extends Thread {
         
         if (time - lastFPS > 1000) {
             Display.setTitle(windowTitle+ " FPS: " + fps +" deltaT: "+deltaTime+
-                    " rot: "+player.rotation+ "pos:"+player.position+" c: "+chunkletsRendered);
+                    " rot: "+player.rotation+ "pos:"+player.position+
+                    " c: "+chunkletsRendered+" v:"+vertsRendered);
             fps = 0; //reset the FPS counter
             lastFPS += 1000; //add one second
         }
@@ -464,19 +467,21 @@ public class MainGLRender extends Thread {
             }
             //TODO check if we still need this chunk or if it's already too far away
             int vboID = glGenBuffers();
-            int iboID = glGenBuffers();
+            //int iboID = glGenBuffers();
             int vaoID = glGenVertexArrays();
             glBindVertexArray(vaoID);
             glBindBuffer(GL_ARRAY_BUFFER, vboID);
-            glBufferData(GL_ARRAY_BUFFER, cl.vertexB, GL_STATIC_DRAW);
+            glBufferData(GL_ARRAY_BUFFER, cl.vertexBB, GL_STATIC_DRAW);
             //glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,iboID);
             //glBufferData(GL_ELEMENT_ARRAY_BUFFER,cl.indexB,GL_STATIC_DRAW);
             glEnableVertexAttribArray(attPos);
             glEnableVertexAttribArray(attColor);
             glEnableVertexAttribArray(attTex);
-            glVertexAttribPointer(attPos, 3, GL_FLOAT, false, 4*8, 4*0);
-            glVertexAttribPointer(attTex, 2, GL_FLOAT, false, 4*8, 4*3);
-            glVertexAttribPointer(attColor, 4, GL_UNSIGNED_BYTE, false, 4*8, 4*5);
+            glEnableVertexAttribArray(attTexID);
+            glVertexAttribPointer(attPos, 3, GL_BYTE, false, GLChunklet.VERTEX_SIZE_BYTES, 0);
+            glVertexAttribPointer(attColor, 3, GL_UNSIGNED_BYTE, true, GLChunklet.VERTEX_SIZE_BYTES, 3);
+            glVertexAttribPointer(attTexID, 1, GL_SHORT, false, GLChunklet.VERTEX_SIZE_BYTES, 6);
+            glVertexAttribPointer(attTex, 2, GL_UNSIGNED_BYTE, true, GLChunklet.VERTEX_SIZE_BYTES, 8);
             glBindVertexArray(0);
             cl.vboID = vboID;
             cl.vaoID = vaoID;
@@ -526,6 +531,7 @@ public class MainGLRender extends Thread {
             //TODO if rendering is fine, remove glBind*(0) calls
             glBindVertexArray(0);
             chunkletsRendered++;
+            vertsRendered += g.vertCount;
             return true;
         }
         return false;

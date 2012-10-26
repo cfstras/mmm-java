@@ -196,7 +196,7 @@ public class GLChunklet extends Chunklet implements WorkerTask {
         } else {
             //TODO use a smaller buffer if this one is way too big
             empty=false;
-            vertexB.flip();
+            vertexBB.flip();
             //indexB.flip();
             built = true;
         }
@@ -372,7 +372,7 @@ public class GLChunklet extends Chunklet implements WorkerTask {
          * 0__1  3 |1  0
          */
         
-        vertexBB.put((byte)(x+ox)).put((byte)(y+oy)).put((byte)(x+oz));
+        vertexBB.put((byte)(x+ox)).put((byte)(y+oy)).put((byte)(z+oz));
         
         ReadableColor c = BlockInfo.blocks[bl.blockID].getColor();
         if(side!=0)c = Color.WHITE;
