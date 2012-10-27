@@ -40,8 +40,8 @@ public class GLChunklet extends Chunklet implements WorkerTask {
     public static final int SHORT_BYTES = 2;
     public static final int INT_BYTES = 4;
     
-    public static final int VERTEX_SIZE_FLOATS = 8;
-    public static final int VERTEX_SIZE_BYTES = VERTEX_SIZE_FLOATS * FLOAT_BYTES;
+    //public static final int VERTEX_SIZE_FLOATS = 2;
+    public static final int VERTEX_SIZE_BYTES = 16 ;
     
     /** Vertex Layout:
      * float posX, posY, posZ;
@@ -86,8 +86,8 @@ public class GLChunklet extends Chunklet implements WorkerTask {
     
     public int vertCount;
     
-    public FloatBuffer vertexB;
-    public IntBuffer vertexIB;
+    //public FloatBuffer vertexFB;
+    //public IntBuffer vertexIB;
     public ByteBuffer vertexBB;
     public ShortBuffer vertexSB;
     //public ByteBuffer indexBB;
@@ -163,8 +163,8 @@ public class GLChunklet extends Chunklet implements WorkerTask {
         
         //indexBB.rewind(); // should not be needed
         vertexBB.clear();
-        vertexIB = vertexBB.asIntBuffer();
-        vertexB = vertexBB.asFloatBuffer();
+        //vertexIB = vertexBB.asIntBuffer();
+        //vertexFB = vertexBB.asFloatBuffer();
         vertexSB = vertexBB.asShortBuffer();
         //indexB = indexBB.asIntBuffer();
         
@@ -187,7 +187,9 @@ public class GLChunklet extends Chunklet implements WorkerTask {
         //    System.out.println(toString()+": verts: "+vertexPos+ " inds: "+indCount+" t:"+Thread.currentThread().getName());
         //}
         vertCount = vertexBB.position()/VERTEX_SIZE_BYTES;
-        
+        if(vertexPos!=vertCount || vertCount % 3 != 0) {
+            System.out.println("error while building glc.");
+        }
         memorySize = VERTEX_SIZE_BYTES * vertCount;// + indCount * INT_BYTES;
         
         if(vertCount==0 /*|| indCount == 0*/) {
@@ -371,11 +373,13 @@ public class GLChunklet extends Chunklet implements WorkerTask {
          * | \|  2 |0  0
          * 0__1  3 |1  0
          */
-        
+                
         vertexBB.put((byte)(x+ox)).put((byte)(y+oy)).put((byte)(z+oz));
         
         ReadableColor c = BlockInfo.blocks[bl.blockID].getColor();
-        if(side!=0)c = Color.WHITE;
+        if(side!=0) {
+            c = Color.WHITE;
+        }
         vertexBB.put(c.getRedByte());
         vertexBB.put(c.getGreenByte());
         vertexBB.put(c.getBlueByte());
@@ -383,7 +387,7 @@ public class GLChunklet extends Chunklet implements WorkerTask {
         short texID = (short)BlockInfo.blocks[bl.blockID].getTexID(side);
         vertexSB.position(vertexBB.position()/2);
         vertexSB.put(texID);
-        vertexBB.position(vertexSB.position()*2);
+        vertexBB.position(vertexBB.position()+2);
         byte u,v;
         switch(id) {
             case 0:
@@ -391,18 +395,22 @@ public class GLChunklet extends Chunklet implements WorkerTask {
             case 1:
                 u=1; v=1; break;
             case 2:
-                u=2; v=0; break;
+                u=0; v=0; break;
             case 3:
-                u=3; v=1; break;
+                u=1; v=0; break;
             default:
+                u=0; v=0;
                 System.out.println("something went terribly wrong");
-                return;
         }
         
-        int row = texID/texture_block_cols;
-        int column = texID%texture_block_cols;
-        vertexBB.put((byte)(u/texture_block_cols+column/texture_block_cols))
-                .put((byte)(v/texture_block_rows+row/texture_block_rows));
+        float row = texID/texture_block_cols;
+        float column = texID%texture_block_cols;
+        float fu = ((float)u/texture_block_cols+column/texture_block_cols);
+        float fv = ((float)v/texture_block_rows+row/texture_block_rows);
+        fv *= 255;
+        fu *= 255;
+        vertexBB.put((byte)fu)
+                .put((byte)fv);
         
         vertexBB.put((byte)0xca).put((byte)0xfe); //padding for fast memory fetches
         vertexBB.put((byte)0xba).put((byte)0xbe).put((byte)0x10).put((byte)0x01);
@@ -443,8 +451,8 @@ public class GLChunklet extends Chunklet implements WorkerTask {
         ByteBuffer vb = vertexBB;
         //indexBB = null;
         //indexB=null;
-        vertexB = null;
-        vertexIB = null;
+        //vertexFB = null;
+        //vertexIB = null;
         vertexBB = null;
         vertexSB = null;
         //if(ib!=null) {

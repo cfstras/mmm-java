@@ -462,7 +462,7 @@ public class MainGLRender extends Thread {
     private void bufferChunk(GLChunklet cl) {
         synchronized(cl.parent){
             //TODO move this to GLChunklet to simplify synchronization
-            if(!cl.built || cl.vertexB==null || cl.empty==true || !cl.awaitingBuffering){
+            if(!cl.built || cl.vertexBB==null || cl.empty==true || !cl.awaitingBuffering){
                 return;
             }
             //TODO check if we still need this chunk or if it's already too far away
@@ -478,9 +478,9 @@ public class MainGLRender extends Thread {
             glEnableVertexAttribArray(attColor);
             glEnableVertexAttribArray(attTex);
             glEnableVertexAttribArray(attTexID);
-            glVertexAttribPointer(attPos, 3, GL_BYTE, false, GLChunklet.VERTEX_SIZE_BYTES, 0);
+            glVertexAttribPointer(attPos, 3, GL_UNSIGNED_BYTE, false, GLChunklet.VERTEX_SIZE_BYTES, 0);
             glVertexAttribPointer(attColor, 3, GL_UNSIGNED_BYTE, true, GLChunklet.VERTEX_SIZE_BYTES, 3);
-            glVertexAttribPointer(attTexID, 1, GL_SHORT, false, GLChunklet.VERTEX_SIZE_BYTES, 6);
+            glVertexAttribPointer(attTexID, 1, GL_UNSIGNED_SHORT, false, GLChunklet.VERTEX_SIZE_BYTES, 6);
             glVertexAttribPointer(attTex, 2, GL_UNSIGNED_BYTE, true, GLChunklet.VERTEX_SIZE_BYTES, 8);
             glBindVertexArray(0);
             cl.vboID = vboID;
