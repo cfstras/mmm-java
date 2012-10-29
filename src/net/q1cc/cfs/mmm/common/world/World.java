@@ -8,9 +8,11 @@ import java.io.File;
 import java.io.Serializable;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.util.ArrayList;
 import net.q1cc.cfs.mmm.client.Client;
 import net.q1cc.cfs.mmm.client.render.WorkerTaskPool;
 import net.q1cc.cfs.mmm.common.Player;
+import net.q1cc.cfs.mmm.common.math.Cubed;
 import net.q1cc.cfs.mmm.common.math.Vec3d;
 import net.q1cc.cfs.mmm.common.math.Vec3f;
 
@@ -20,6 +22,7 @@ import net.q1cc.cfs.mmm.common.math.Vec3f;
  */
 public class World implements Serializable{
     
+    public boolean exiting=false;    
     /**
      * This is the root generated Octree, level 10
      * it's 2^10m on each side
@@ -31,8 +34,11 @@ public class World implements Serializable{
      * although the outer block on tree level 0 has the coordinates 1023,1023,1023,
      * but outerSubtree(outerSubtree([...]outerSubtree.coords)[...]) == 1024,1024,1024
      */
-    public WorldOctree generateOctree;
-   
+    //public WorldOctree generateOctree;
+    //screw you.
+    public ArrayList<Chunklet> generateChunklets;
+    
+    
     /**
      * This is the changed root Octree.
      * other than the generated Octree, it only contains subtrees/blocks
@@ -61,6 +67,8 @@ public class World implements Serializable{
     
     public Player player;
     
+    public ChunkletManager chunkletManager;
+    
     public World(File folder, WorldOctree changedOctree, WorldGeneratorType type, long worldSeed){
         this.folder=folder;
         //this.changedOctree=changedOctree;
@@ -68,12 +76,13 @@ public class World implements Serializable{
         this.worldSeed=worldSeed;
         
         double m = -WorldOctree.getSidelength(WorldOctree.highestSubtreeLvl)/2;
-        generateOctree=new WorldOctree(new Vec3d(m,m,m));
+        //generateOctree=new WorldOctree(new Vec3d(m,m,m));
+        generateChunklets = new ArrayList<Chunklet>(128);
         
         this.worldProvider=getGenerator();
         
         //TODO convert this to workers
-        ((WorldGenerator)worldProvider).generate(generateOctree, 4);
+        //(worldProvider).generate(generateChunklets, 4);
         
         this.spawnPoint=worldProvider.spawnPoint(); //call now, because spawnPoint sets a torch
         player=new Player();
@@ -86,6 +95,24 @@ public class World implements Serializable{
         if(changedOctree==null){
             initChangedOctree();
         }
+    }
+    
+    /**
+     * gets the chunklet which a given point resides in.
+     * 
+     * @param point
+     * @return null, if that one is not in memory
+     */
+    public Chunklet getChunkletAt(Vec3d point) {
+        //TODO make this smarter
+        
+        for(Chunklet c: generateChunklets) {
+            if(Cubed.intersectsCorner(point, c.posX, c.posY,c.posZ, Chunklet.csl)) {
+                return c;
+            }
+        }
+        
+        return null;
     }
     
     private WorldGenerator getGenerator(){

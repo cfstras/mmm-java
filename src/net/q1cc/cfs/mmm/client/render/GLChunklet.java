@@ -35,7 +35,6 @@ public class GLChunklet extends Chunklet implements WorkerTask {
     public static int texture_block_rows = 8;
     public static int texture_block_cols = 8;
     
-    
     public static final int FLOAT_BYTES = 4;
     public static final int SHORT_BYTES = 2;
     public static final int INT_BYTES = 4;
@@ -95,12 +94,12 @@ public class GLChunklet extends Chunklet implements WorkerTask {
     
     //state flags
     boolean building=false;
-    boolean built=false;
+    public boolean built=false;
     boolean empty=false;
     boolean buffered=false;
     
     //waiting operations
-    boolean awaitingBuild = false;
+    public boolean awaitingBuild = false;
     boolean awaitingCacheCleanup = false;
     boolean awaitingBuffering = false;
     boolean awaitingUpdate=false;
@@ -113,15 +112,15 @@ public class GLChunklet extends Chunklet implements WorkerTask {
      * @param from 
      */
     public GLChunklet(Chunklet from) {
-        super(from.posX,from.posY,from.posZ, from.parent);
+        super(from.posX,from.posY,from.posZ);
         this.blocks=from.blocks;
-        if(from.parent==null){
-            System.out.println("muh!");
-        }
+        //f(from.parent==null){
+        //    System.out.println("muh!");
+        //}
     }
     
-    public GLChunklet(int x, int y, int z, WorldOctree parent){
-        super(x,y,z, parent);
+    public GLChunklet(int x, int y, int z){
+        super(x,y,z);
     }
     
     /**
@@ -140,13 +139,9 @@ public class GLChunklet extends Chunklet implements WorkerTask {
      * @param targetI same for index buffer
      */
     private boolean buildChunklet() {
-        
         //build chunk
-        //int vertexSize = 8;
-        //int indexSize = 1;
-        int vertices = 0;
-        //int indices = 0;
-        int vertexPos=0; 
+        int vertices;
+        int vertexPos; 
         Block b;
         blocksInside=Chunklet.csl2*Chunklet.csl;// assume a full chunk
         vertices = 4 * blocksInside * 6;
@@ -175,6 +170,7 @@ public class GLChunklet extends Chunklet implements WorkerTask {
                 for(byte iz=0; iz<Chunklet.csl; iz++) {
                     b = blocks[ix + iy*Chunklet.csl + iz*Chunklet.csl2];
                     if(b!=null){
+                        blocksInside++;
                         vertexPos = block(b,ix,iy,iz,vertexPos,true);
                     }
                 }// three
@@ -257,7 +253,7 @@ public class GLChunklet extends Chunklet implements WorkerTask {
      * schedules a cache cleanup.
      * also cancels scheduling for buffering.
      */
-    void cleanupCache() {
+    public void cleanupCache() {
         synchronized(this) {
             if(built) {
                 if(!awaitingBuffering && !awaitingVRAMCleanup && !awaitingBuild
@@ -277,7 +273,7 @@ public class GLChunklet extends Chunklet implements WorkerTask {
     /**
      * schedules a VRAM garbage collect.
      */
-    void cleanupVRAMCache() {
+    public void cleanupVRAMCache() {
         synchronized(this) {
             if(buffered) {
                 if(!awaitingBuffering && !awaitingVRAMCleanup && !awaitingBuild
@@ -294,7 +290,7 @@ public class GLChunklet extends Chunklet implements WorkerTask {
      * schedules this GLChunklet to build.
      * also cancels scheduling for buffering.
      */
-    void build() {
+    public void build() {
         synchronized(this) {
             if(!built) {
                 if(!awaitingBuffering && !awaitingVRAMCleanup && !awaitingBuild
@@ -412,8 +408,8 @@ public class GLChunklet extends Chunklet implements WorkerTask {
         vertexBB.put((byte)fu)
                 .put((byte)fv);
         
-        vertexBB.put((byte)0xca).put((byte)0xfe); //padding for fast memory fetches
-        vertexBB.put((byte)0xba).put((byte)0xbe).put((byte)0x10).put((byte)0x01);
+        vertexBB.put((byte)0x00).put((byte)0x00); //padding for fast memory fetches
+        vertexBB.put((byte)0x00).put((byte)0x00).put((byte)0x00).put((byte)0x00);
     }
 
     private int block(Block b, byte ix, byte iy, byte iz, int vertexPos, boolean draw) {

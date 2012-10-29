@@ -22,25 +22,36 @@ public class EarthGenerator extends WorldGenerator {
         super(world,taskPool);
     }
     
+//    @Override
+//    public void generate(WorldOctree oc, int levels) {
+//        if(levels>0){
+//            for(int i=0;i<8;i++){
+//                generate(oc.getSubtree(i,true),levels-1);
+//                if(levels>=WorldOctree.highestSubtreeLvl)
+//                    System.out.println("gen: l="+levels+" i="+i);
+//            }
+//        } else {
+//            if(oc.subtreeLvl!=0){
+//                return; //don't generate anything smaller.
+//            }
+//            //TODO create a GLChunklet only if we are client
+//            synchronized(oc) {
+//                if(oc.block==null) {
+//                    oc.block = new GLChunklet((int)oc.position.x,(int)oc.position.y,(int)oc.position.z,oc);
+//                }
+//                generate(oc.block);
+//            }
+//        } 
+//        oc.isGenerated=true;
+//    }
+    
+    
     @Override
-    public void generate(WorldOctree oc, int levels) {
-        if(levels>0){
-            for(int i=0;i<8;i++){
-                generate(oc.getSubtree(i,true),levels-1);
-                if(levels>=WorldOctree.highestSubtreeLvl)
-                    System.out.println("gen: l="+levels+" i="+i);
-            }
-        } else {
-            if(oc.subtreeLvl!=0){
-                return; //don't generate anything smaller.
-            }
-            //TODO create a GLChunklet only if we are client
-            if(oc.block==null) {
-                oc.block = new GLChunklet((int)oc.position.x,(int)oc.position.y,(int)oc.position.z,oc);
-            }
-            generate(oc.block);
-        } 
-        oc.isGenerated=true;
+    public Chunklet generate(int x, int y, int z) {
+        Chunklet g = new GLChunklet(x,y,z);
+        generate(g);
+        
+        return g;
     }
     
     public void generate(Chunklet c) {
@@ -49,7 +60,7 @@ public class EarthGenerator extends WorldGenerator {
             for (int y = 0; y < Chunklet.csl; y++) {
                 for (int z = 0; z < Chunklet.csl; z++) {
                     c.blocks[x + Chunklet.csl * y + Chunklet.csl2 * z]
-                    = generateBlock(x+c.posX,y+c.posY,z+c.posZ,c.parent.height+c.posY,sn);
+                    = generateBlock(x+c.posX,y+c.posY,z+c.posZ,y+c.posY,sn);
 
                 }
             }
@@ -58,11 +69,16 @@ public class EarthGenerator extends WorldGenerator {
     Block generateBlock(int x, int y, int z, double height, SimplexNoise sn) {
         //TODO do biomes here
         
-        double h = sn.noise(x/80.0,y/80.0,z/80.0)-(y/70.0)-1;
-        if(h>0) return BlockInfo.create(BlockInfo.GRASS);
-        
-        return null;
-        //return generateHills(x,y,z,height,sn);
+        Vec3d sp = world.spawnPoint;
+        if((int)sp.x == x && (int)sp.y == y && (int)sp.z == z) {
+            return BlockInfo.create(BlockInfo.LIGHTSTONE);
+        }
+        //double h = sn.noise(x/80.0,y/80.0,z/80.0)-(y/70.0)-1;
+        //if(h>0) {
+        //    return BlockInfo.create(BlockInfo.GRASS);
+        //}
+        //return null;
+        return generateHills(x,y,z,height,sn);
     }
     
     Block generateHills(int x, int y, int z, double height, SimplexNoise sn) {
@@ -80,4 +96,5 @@ public class EarthGenerator extends WorldGenerator {
         
         return null;
     }
+
 }

@@ -5,6 +5,7 @@
 package net.q1cc.cfs.mmm.common.world;
 
 import java.io.Serializable;
+import net.q1cc.cfs.mmm.client.Client;
 import net.q1cc.cfs.mmm.common.blocks.BlockInfo;
 import net.q1cc.cfs.mmm.common.math.Vec3d;
 import net.q1cc.cfs.mmm.common.math.Vec3f;
@@ -48,11 +49,11 @@ public class Chunklet implements Serializable {
      */
     public Block[] blocks = new Block[csl*csl*csl];
     
-    public final WorldOctree parent;
+    //public final WorldOctree parent;
     
-    public Chunklet(int posX, int posY, int posZ, WorldOctree parent){
+    public Chunklet(int posX, int posY, int posZ) {
         this.posX=posX; this.posY=posY; this.posZ=posZ;
-        this.parent=parent;
+        //this.parent=parent;
     }
     
     public static int getBlockIndex(float x, float y,float z) {
@@ -133,14 +134,11 @@ public class Chunklet implements Serializable {
             } else {
                 System.out.println("wtf");
             }
-            WorldOctree otheroc = parent.getAdjecent(adjSide);
-            if (otheroc == null) {
+            Chunklet g = Client.instance.world.chunkletManager.getAdjecent(adjSide);
+            if (g == null) {
                 return false;
             }
-            if (otheroc.block == null) {
-                return false;
-            }
-            return otheroc.block.hasOpaqueBlock(ix, iy, iz, false);
+            return g.hasOpaqueBlock(ix, iy, iz, false);
         }
         Block b = blocks[ix + iy * Chunklet.csl + iz * Chunklet.csl2];
         if (b == null) {
@@ -150,5 +148,32 @@ public class Chunklet implements Serializable {
             return true;
         }
         return false;
+    }
+    
+    
+    @Override
+    public boolean equals(Object other) {
+        if(other==null) {
+            return false;
+        }
+        if(other.getClass() != getClass()) {
+            return false;
+        }
+        Chunklet o = (Chunklet) other;
+        if(o.posX!=posX || o.posY!=posY || o.posZ!=posZ
+                || o.blocksInside!=blocksInside || o.blocks!=o.blocks) {
+            return false;
+        }
+        return true;
+    }
+
+    @Override
+    public int hashCode() {
+        int hash = 3;
+        hash = 83 * hash + this.posX;
+        hash = 83 * hash + this.posY;
+        hash = 83 * hash + this.posZ;
+        hash = 83 * hash + this.blocksInside;
+        return hash;
     }
 }

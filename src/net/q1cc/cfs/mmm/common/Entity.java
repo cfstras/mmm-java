@@ -51,13 +51,13 @@ abstract public class Entity {
      */
     public boolean translate(Vec3f xyz) {
         Vec3f newPos=position.add(xyz);
-        Vec3f colPoint = Physics.getCollision(this,xyz);
-        if(colPoint==null){
+        //Vec3f colPoint = Physics.getCollision(this,xyz);
+        //if(colPoint==null){
             position = newPos;
-        } else {
-            position = colPoint;
+        //} else {
+        //    position = colPoint;
             //TODO damage.
-        }
+        //}
         return true;
     }
     

@@ -5,18 +5,15 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.FloatBuffer;
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Set;
-import java.util.Vector;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import javax.swing.JOptionPane;
 import net.q1cc.cfs.mmm.client.Client;
 import net.q1cc.cfs.mmm.common.Player;
+import net.q1cc.cfs.mmm.common.world.ChunkletManager;
 import net.q1cc.cfs.mmm.common.world.World;
 import net.q1cc.cfs.mmm.common.world.WorldOctree;
 import org.lwjgl.BufferUtils;
@@ -44,7 +41,6 @@ public class MainGLRender extends Thread {
     
     ConcurrentLinkedDeque<GLChunklet> chunksToBuffer = new ConcurrentLinkedDeque<GLChunklet>();
     final List<GLChunklet> chunksBuffered = Collections.synchronizedList(new LinkedList<GLChunklet>());
-    private ChunkletManager chunkletManager;
     public GLGarbageCollector garbageCollector = new GLGarbageCollector();
     
     private boolean fullscreen = false;
@@ -188,6 +184,7 @@ public class MainGLRender extends Thread {
         }
         if(Display.isCloseRequested()) {                     // Exit if window is closed
             exiting = true;
+            world.exiting = true;
         }
         if(Keyboard.isKeyDown(Keyboard.KEY_F11) && !f11) {    // Is F11 Being Pressed?
             f11 = true;                                      // Tell Program F1 Is Being Held
@@ -198,18 +195,6 @@ public class MainGLRender extends Thread {
         }
         if(Keyboard.isKeyDown(Keyboard.KEY_F5)&&!f5) {
             loadShaders();
-            taskPool.add(new WorkerTask(){
-            @Override
-            public synchronized boolean doWork() {
-                prepareAllChunklets(true);
-                return true;
-            }
-
-            @Override
-            public int getPriority() {
-                return WorkerTask.PRIORITY_MAX;
-            }
-        });
             f5=true;
         } else {
             f5=false;
@@ -235,7 +220,7 @@ public class MainGLRender extends Thread {
         }
         if(left||right||forward||back){
             player.move(forward, left, right, back, false);
-            taskPool.add(chunkletManager);
+            taskPool.add(world.chunkletManager);
         }
         
         if(Mouse.isGrabbed()){
@@ -365,12 +350,12 @@ public class MainGLRender extends Thread {
         
         // start loading the world and converting chunklets to glchunklets
         
-        chunkletManager = new ChunkletManager(this);
+        world.chunkletManager = new ChunkletManager(world);
         
         createWindow();
         Mouse.setGrabbed(false);
         initGL();
-        taskPool.add(chunkletManager); //TODO
+        taskPool.add(world.chunkletManager); //TODO
     }
 
     private void initGL() {
@@ -430,27 +415,26 @@ public class MainGLRender extends Thread {
         if (time - lastFPS > 1000) {
             Display.setTitle(windowTitle+ " FPS: " + fps +" deltaT: "+deltaTime+
                     " rot: "+player.rotation+ "pos:"+player.position+
-                    " c: "+chunkletsRendered+" v:"+vertsRendered);
+                    " c: "+chunkletsRendered+" v:"+vertsRendered/1000+"k");
             fps = 0; //reset the FPS counter
             lastFPS += 1000; //add one second
         }
         fps++;
     }
     
-    void prepareAllChunklets(boolean reload) {
-        recursePrepare(world.generateOctree,reload);
-    }
-    
     public void recursePrepare(WorldOctree oc, boolean reload){
+        //TODO move this to chunkletManager (?)
         if(oc==null) return;
-        if(oc.block!=null){
-            if(!(oc.block instanceof GLChunklet)){
-                GLChunklet n = new GLChunklet(oc.block);
-                oc.block=n;
-                n.build();
-            } else if(oc.block instanceof GLChunklet){
-                GLChunklet n = (GLChunklet)oc.block;
-                n.build();
+        synchronized(oc) {
+            if(oc.block!=null){
+                if(!(oc.block instanceof GLChunklet)){
+                    GLChunklet n = new GLChunklet(oc.block);
+                    oc.block=n;
+                    n.build();
+                } else if(oc.block instanceof GLChunklet){
+                    GLChunklet n = (GLChunklet)oc.block;
+                    n.build();
+                }
             }
         }
         if(!oc.hasSubtrees) return;
@@ -460,7 +444,7 @@ public class MainGLRender extends Thread {
     }
     
     private void bufferChunk(GLChunklet cl) {
-        synchronized(cl.parent){
+        synchronized(cl){
             //TODO move this to GLChunklet to simplify synchronization
             if(!cl.built || cl.vertexBB==null || cl.empty==true || !cl.awaitingBuffering){
                 return;
