@@ -34,7 +34,7 @@ public abstract class WorldProvider {
         double maxXZ = WorldOctree.getSidelength(WorldOctree.highestSubtreeLvl - 1);
         Vec3d sp = new Vec3d(r.nextDouble() * maxXZ, -15, r.nextDouble() * maxXZ);
         sp.x = Math.round(sp.x); sp.z = Math.round(sp.z);
-        //TODO move down to ground
+        //TODO move down/up to ground
         //and select another point if this takes too long
         //just for show, spawn a lightstone there.
         //WorldOctree w = WorldOctree.getOctreeAt(sp, 0, world.generateOctree, true);

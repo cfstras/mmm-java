@@ -55,10 +55,14 @@ import java.util.Hashtable;
 import javax.imageio.ImageIO;
 
 import javax.swing.ImageIcon;
+import net.q1cc.cfs.mmm.common.blocks.BlockInfo;
 
 import org.lwjgl.BufferUtils;
 
 import static org.lwjgl.opengl.GL11.*;
+import org.lwjgl.opengl.GL12;
+import org.lwjgl.opengl.GL15;
+import static org.lwjgl.opengl.GL30.*;
 
 /**
  * A utility class to load textures for OpenGL. This source is based
@@ -122,18 +126,18 @@ public class TextureLoader {
      * @return The loaded texture
      * @throws IOException Indicates a failure to access the resource
      */
-    public Texture getTexture(String resourceName) throws IOException {
+    public Texture getTextureArr(String resourceName, int numTextures) throws IOException {
         Texture tex = table.get(resourceName);
 
         if (tex != null) {
             return tex;
         }
 
-        tex = getTexture(resourceName,
+        tex = getTextureArr(resourceName,
                          GL_TEXTURE_2D, // target
                          GL_RGBA,     // dst pixel format
                          GL_LINEAR, // min filter (unused)
-                         GL_LINEAR);
+                         GL_LINEAR, numTextures);
 
         table.put(resourceName,tex);
 
@@ -152,11 +156,11 @@ public class TextureLoader {
      * @return The loaded texture
      * @throws IOException Indicates a failure to access the resource
      */
-    public Texture getTexture(String resourceName,
+    public Texture getTextureArr(String resourceName,
                               int target,
                               int dstPixelFormat,
                               int minFilter,
-                              int magFilter) throws IOException {
+                              int magFilter, int numTextures) throws IOException {
         int srcPixelFormat;
 
         // create the texture ID for this texture
@@ -179,21 +183,31 @@ public class TextureLoader {
         // convert that image into a byte buffer of texture data
         ByteBuffer textureBuffer = convertImageData(bufferedImage,texture);
 
-        if (target == GL_TEXTURE_2D) {
+        if (target == GL_TEXTURE_2D || target == GL_TEXTURE_2D_ARRAY) {
             glTexParameteri(target, GL_TEXTURE_MIN_FILTER, minFilter);
             glTexParameteri(target, GL_TEXTURE_MAG_FILTER, magFilter);
         }
 
         // produce a texture from the byte buffer
-        glTexImage2D(target,
-                      0,
-                      dstPixelFormat,
-                      get2Fold(bufferedImage.getWidth()),
-                      get2Fold(bufferedImage.getHeight()),
-                      0,
-                      srcPixelFormat,
-                      GL_UNSIGNED_BYTE,
-                      textureBuffer );
+//        glTexImage2D(target,
+//                      0,
+//                      dstPixelFormat,
+//                      get2Fold(bufferedImage.getWidth()),
+//                      get2Fold(bufferedImage.getHeight()),
+//                      0,
+//                      srcPixelFormat,
+//                      GL_UNSIGNED_BYTE,
+//                      textureBuffer );
+        GL12.glTexImage3D(target,
+                0,
+                dstPixelFormat,
+                get2Fold(BlockInfo.textureRes),
+                get2Fold(BlockInfo.textureRes),
+                numTextures,
+                0,
+                srcPixelFormat,
+                GL_UNSIGNED_BYTE,
+                textureBuffer);
         
         return texture;
     }

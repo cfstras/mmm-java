@@ -27,7 +27,7 @@ public class ChunkletManager implements WorkerTask {
      * initial viewDistance, in chunklets.
      * update with updateViewDistance()
      */
-    private static int viewDist = 16;
+    private static int viewDist = 8;
     
     private static int viewDistSqM;
     private static int cslh;
@@ -94,7 +94,6 @@ public class ChunkletManager implements WorkerTask {
             //System.gc(); //TODO do some gc after removing chunks, or not.
             //debugChunks();
         }
-        //TODO add this task to the taskpool whenever the player moves.
         working=false;
         return true;
     }
@@ -256,6 +255,19 @@ public class ChunkletManager implements WorkerTask {
 
     Chunklet getAdjecent(int adjSide) {
         return null; //TODO implement getAdjecent
+    }
+
+    void unload() {
+        Iterator<Chunklet> it = world.generateChunklets.iterator();
+        while(it.hasNext()) {
+            Chunklet c = it.next();
+            it.remove();
+            if(c instanceof GLChunklet) {
+                GLChunklet glc = (GLChunklet) c;
+                glc.cleanupCache();
+                glc.cleanupVRAMCache();
+            }
+        }
     }
     
 }

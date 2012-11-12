@@ -13,6 +13,7 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 import javax.swing.JOptionPane;
 import net.q1cc.cfs.mmm.client.Client;
 import net.q1cc.cfs.mmm.common.Player;
+import net.q1cc.cfs.mmm.common.blocks.BlockInfo;
 import net.q1cc.cfs.mmm.common.world.ChunkletManager;
 import net.q1cc.cfs.mmm.common.world.World;
 import net.q1cc.cfs.mmm.common.world.WorldOctree;
@@ -65,6 +66,7 @@ public class MainGLRender extends Thread {
     int uniBlockTex;
     int uniProjMat;
     int uniPosChunkMat;
+    int uniNumBlocks;
     
     Texture blockTexture;
    
@@ -166,6 +168,7 @@ public class MainGLRender extends Thread {
         uniPosChunkMat = glGetUniformLocation(basicShader, "posChunkMat");
         uniProjMat = glGetUniformLocation(basicShader, "projMat");
         uniBlockTex = glGetUniformLocation(basicShader, "blockTex");
+        uniNumBlocks = glGetUniformLocation(basicShader,"numBlocks");
     }
     private static String[] readString(InputStream in) throws IOException {
         BufferedReader i = new BufferedReader(new InputStreamReader(in));
@@ -266,6 +269,7 @@ public class MainGLRender extends Thread {
         // wireframe mode
         //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         glUseProgram(basicShader);
+        glUniform1i(uniNumBlocks, BlockInfo.numTextures);
         glUniformMatrix4(uniProjMat,false,projMatB);
         glUniformMatrix4(uniPosChunkMat,false,posChunkMatB);
         
@@ -291,7 +295,6 @@ public class MainGLRender extends Thread {
         //System.out.println("chunklets: "+chunkletsRendered);
         //TODO HUD here
         
-        //TODO check if there is time
         //now to buffer some chunks
         if(!chunksToBuffer.isEmpty()){
             for(int i=0;i<1;i++){ //TODO do as many as time allows us to
@@ -355,7 +358,7 @@ public class MainGLRender extends Thread {
         createWindow();
         Mouse.setGrabbed(false);
         initGL();
-        taskPool.add(world.chunkletManager); //TODO
+        taskPool.add(world.chunkletManager);
     }
 
     private void initGL() {
@@ -378,8 +381,8 @@ public class MainGLRender extends Thread {
     
     private void cleanup() {
         System.out.println("cleaning up...");
-        //TODO delete all chunklets from memory
-        
+        world.unload();
+        System.out.println("waiting for memory to unload...");
         Display.destroy();
         taskPool.finishWorkers();
         System.out.println("finis.");
@@ -582,8 +585,9 @@ public class MainGLRender extends Thread {
         texL= new TextureLoader();
         try {
             glActiveTexture(GL_TEXTURE0);
-            Texture b = texL.getTexture("/png/blocks.png", GL_TEXTURE_2D,GL_RGB,
-                    GL_NEAREST_MIPMAP_LINEAR,GL_NEAREST);
+            Texture b = texL.getTextureArr("/png/blocks.png", GL_TEXTURE_2D_ARRAY,GL_RGB,
+                    GL_NEAREST_MIPMAP_LINEAR,GL_NEAREST,
+                    BlockInfo.numTextures);
             //JOptionPane.showMessageDialog(Display.getParent(),"Texture loaded:"+b );
             if(b==null){
                 System.out.println("error: texture could not be loaded.");
@@ -591,11 +595,11 @@ public class MainGLRender extends Thread {
             } else {
                 blockTexture=b;
                 b.bind();
-                glGenerateMipmap(GL_TEXTURE_2D);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 4); //for 16x16 textures
-                glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_CLAMP);
-                glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_CLAMP);
-                glBindTexture(GL_TEXTURE_2D,0);
+                glGenerateMipmap(GL_TEXTURE_2D_ARRAY);
+                glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAX_LEVEL, 4); //for 16x16 textures
+                glTexParameteri(GL_TEXTURE_2D_ARRAY,GL_TEXTURE_WRAP_S,GL_REPEAT);
+                glTexParameteri(GL_TEXTURE_2D_ARRAY,GL_TEXTURE_WRAP_T,GL_REPEAT);
+                glBindTexture(GL_TEXTURE_2D_ARRAY,0);
             }
         } catch (IOException ex) {
             ex.printStackTrace();

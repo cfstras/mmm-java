@@ -5,6 +5,7 @@
 package net.q1cc.cfs.mmm.common;
 
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.concurrent.ConcurrentLinkedDeque;
@@ -53,6 +54,7 @@ public class MemUtil {
         if(buffer==null && !outOfMemory) {
             try {
                 buffer = BufferUtils.createByteBuffer(minSize);
+                buffer.order(ByteOrder.nativeOrder());
             } catch (OutOfMemoryError e) {
                 //well, let's leave him with nothing.
                 outOfMemory=true;

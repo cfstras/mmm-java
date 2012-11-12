@@ -15,7 +15,7 @@ import org.lwjgl.util.vector.*;
  */
 public class Player extends Entity{
     
-    float walkingSpeed=8f;
+    float walkingSpeed=20f;
     float runningSpeed=0.3f;
     Controller controller;
     

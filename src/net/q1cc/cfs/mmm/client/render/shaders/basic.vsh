@@ -2,12 +2,12 @@
 
 in vec3  inPos;
 in vec2  inTex;
-in int   inTexID;
-in vec4  inColor;
+in float inTexID;
+in vec3  inColor;
 
 smooth out vec2  vTex;
-flat   out int   vTexID;
-smooth out vec4  vColor;
+smooth out float vTexID;
+smooth out vec3  vColor;
 
 uniform mat4 projMat;
 uniform mat4 posChunkMat;

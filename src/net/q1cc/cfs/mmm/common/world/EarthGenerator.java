@@ -84,13 +84,13 @@ public class EarthGenerator extends WorldGenerator {
     Block generateHills(int x, int y, int z, double height, SimplexNoise sn) {
         //double dd = noise(x/1000.0, y/1000.0, z/1000.0)*20;
         double d = sn.noise(x/100.0, z/100.0)*1 - sn.noise(x/400.0+800, y/100.0, z/400.0+100)*3 - (y/10.0+1);
-        if (d>0 && d<0.4) {
+        if (d>0 && d<0.2) {
             return BlockInfo.create(BlockInfo.GRASS);
-        } else if (d>=0.4 && d<1.0) {
+        } else if (d>=0.2 && d<0.6) {
             return BlockInfo.create(BlockInfo.DIRT);
-        } else if (d>=1.0 && d<10) {
+        } else if (d>=0.6 && d<10) {
             return BlockInfo.create(BlockInfo.ROCK);
-        } else if(d>=10) {
+        } else if(d>=5) {
             return BlockInfo.create(BlockInfo.SAND);
         }
         

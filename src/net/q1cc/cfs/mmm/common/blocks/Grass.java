@@ -23,6 +23,6 @@ public class Grass extends BlockInfo {
     @Override
     public ReadableColor getColor() {
         //TODO do biome color calculations here
-        return new Color(140, 255, 100, 255);
+        return new Color(127-58, 127+37, 127-95, 255);
     }
 }

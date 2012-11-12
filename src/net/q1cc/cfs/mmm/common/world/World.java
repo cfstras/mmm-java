@@ -81,9 +81,6 @@ public class World implements Serializable{
         
         this.worldProvider=getGenerator();
         
-        //TODO convert this to workers
-        //(worldProvider).generate(generateChunklets, 4);
-        
         this.spawnPoint=worldProvider.spawnPoint(); //call now, because spawnPoint sets a torch
         player=new Player();
         
@@ -116,22 +113,6 @@ public class World implements Serializable{
     }
     
     private WorldGenerator getGenerator(){
-//        Class<?> wgclass=null;
-//        try {
-//            wgclass=(Class<?>)Class.forName("net.q1cc.cfs.mmm.common.world."+worldType.name());
-//        } catch (Exception ex){
-//            System.err.println("Error: could not find World Generator for worldType "+worldType.name()+". Using Earth.");
-//            ex.printStackTrace();
-//            wgclass=EarthGenerator.class;
-//        }
-//        WorldGenerator wg = null;
-//        try {
-//            Constructor<?>[] cons = wgclass.getConstructors();
-//            
-//            wg = (WorldGenerator)cons[0].newInstance(this,Client.instance.renderer.taskPool);
-//        } catch (Exception ex) {
-//            ex.printStackTrace();
-//        }
         WorldGenerator wg=null;
         if(worldType == WorldGeneratorType.EarthGenerator){
             wg = new EarthGenerator(this, Client.instance.taskPool);
@@ -141,8 +122,13 @@ public class World implements Serializable{
     }
 
     private void initChangedOctree() {
-        WorldOctree wo= new WorldOctree(Vec3d.NULL);
-        //changedOctree=wo;
+        //here is where the second world could go
+    }
+
+    public void unload() {
+        exiting=true;
+        chunkletManager.unload();
+        //TODO save any nonsaved chunklets
     }
     
 }

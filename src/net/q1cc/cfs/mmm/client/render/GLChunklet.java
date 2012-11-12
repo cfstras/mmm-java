@@ -6,6 +6,7 @@ package net.q1cc.cfs.mmm.client.render;
 
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.nio.ShortBuffer;
@@ -149,7 +150,7 @@ public class GLChunklet extends Chunklet implements WorkerTask {
         
         //indexBB = MemUtil.getBuffer(indices * indexSize * 4);
         vertexBB = MemUtil.getBuffer(vertices * VERTEX_SIZE_BYTES);
-        
+        vertexBB.order(ByteOrder.nativeOrder());
         if(/*indexBB==null ||*/ vertexBB==null) { // out of memory, delay generation
             priority = WorkerTask.PRIORITY_IDLE;
             doCleanupCache();
@@ -374,16 +375,20 @@ public class GLChunklet extends Chunklet implements WorkerTask {
         
         ReadableColor c = BlockInfo.blocks[bl.blockID].getColor();
         if(side!=0) {
-            c = Color.WHITE;
+            c = new Color(128, 128, 128);
         }
         vertexBB.put(c.getRedByte());
         vertexBB.put(c.getGreenByte());
         vertexBB.put(c.getBlueByte());
+        //vertexBB.put((byte)255).put((byte)255).put((byte)100);
         
         short texID = (short)BlockInfo.blocks[bl.blockID].getTexID(side);
-        vertexSB.position(vertexBB.position()/2);
-        vertexSB.put(texID);
-        vertexBB.position(vertexBB.position()+2);
+        byte a = (byte) ((texID&0xff00)>>8);
+        byte b = (byte) ((texID&0x00ff)>>0);
+        //vertexBB.put((byte)-127).put((byte)0);
+        //vertexSB.position(vertexBB.position()/2);
+        vertexBB.put((byte)(b)).put((byte)(a));
+        //vertexSB.put(texID);
         byte u,v;
         switch(id) {
             case 0:
@@ -399,14 +404,14 @@ public class GLChunklet extends Chunklet implements WorkerTask {
                 System.out.println("something went terribly wrong");
         }
         
-        float row = texID/texture_block_cols;
-        float column = texID%texture_block_cols;
-        float fu = ((float)u/texture_block_cols+column/texture_block_cols);
-        float fv = ((float)v/texture_block_rows+row/texture_block_rows);
-        fv *= 255;
-        fu *= 255;
-        vertexBB.put((byte)fu)
-                .put((byte)fv);
+        //float row = texID/texture_block_cols;
+        //float column = texID%texture_block_cols;
+        //float fu = ((float)u/texture_block_cols+column/texture_block_cols);
+        //float fv = ((float)v/texture_block_rows+row/texture_block_rows);
+        //fv *= 256;
+        //fu *= 256;
+        vertexBB.put((byte)(u*255))
+                .put((byte)(v*255));
         
         vertexBB.put((byte)0x00).put((byte)0x00); //padding for fast memory fetches
         vertexBB.put((byte)0x00).put((byte)0x00).put((byte)0x00).put((byte)0x00);
