@@ -31,9 +31,13 @@ abstract public class WorldGenerator extends WorldProvider {
         super(world,taskPool);
     }
     
-    @Override
-    public void provideSubtree(WorldOctree oc, Vec3f position){
-        taskPool.add(new WorkerTaskImpl(oc, position));
+//    @Override
+//    public void provideSubtree(WorldOctree oc, Vec3f position){
+//        new WorkerTaskImpl(oc, position).doWork();
+//    }
+    
+    public Chunklet provideChunklet(int x, int y, int z) {
+        return generate(x, y, z);
     }
     
     /**
@@ -48,41 +52,43 @@ abstract public class WorldGenerator extends WorldProvider {
      * If the isGenerated flag is set, all children must be checked
      * whether they might need to be generated.
      */
-    public abstract void generate(WorldOctree oc,int levels);
+//    public abstract void generate(WorldOctree oc,int levels);
+    public abstract Chunklet generate(int x, int y, int z);
     
     /**
      * generates the same way as the normal function does, but generates only the subtrees leading to the position and level specified.
      * @param oc
      * @param levels 
      */
-    public void generateInto(WorldOctree oc,Vec3f position, int toLevel) {
-        generate(oc,0);
-        if(toLevel<oc.subtreeLvl) {
-            generateInto(WorldOctree.getOctreeAt(new Vec3d(position), oc.subtreeLvl-1, oc,true),position,toLevel);
-        }
-    }
+//    public void generateInto(WorldOctree oc,Vec3f position, int toLevel) {
+//        if(toLevel==oc.subtreeLvl) {
+//            generate(oc,toLevel);
+//        } else if(toLevel<oc.subtreeLvl) {
+//            generateInto(WorldOctree.getOctreeAt(new Vec3d(position), oc.subtreeLvl-1, oc,true),position,toLevel);
+//        }
+//    }
 
-    private class WorkerTaskImpl implements WorkerTask {
-
-        private final WorldOctree oc;
-        private final Vec3f position;
-
-        public WorkerTaskImpl(WorldOctree oc, Vec3f position) {
-            this.oc = oc;
-            this.position = position;
-        }
-
-        @Override
-        public int getPriority() {
-            return WorkerTask.PRIORITY_NORM;
-        }
-
-        @Override
-        public boolean doWork() {
-            generateInto(oc,position,0);
-            Client.instance.renderer.recursePrepare(oc, false);
-            return true;
-        }
-    }
+//    private class WorkerTaskImpl implements WorkerTask {
+//
+//        private final WorldOctree oc;
+//        private final Vec3f position;
+//
+//        public WorkerTaskImpl(WorldOctree oc, Vec3f position) {
+//            this.oc = oc;
+//            this.position = position;
+//        }
+//
+//        @Override
+//        public int getPriority() {
+//            return WorkerTask.PRIORITY_NORM;
+//        }
+//
+//        @Override
+//        public boolean doWork() {
+//            generateInto(oc,position,0);
+//            Client.instance.renderer.recursePrepare(oc, false);
+//            return true;
+//        }
+//    }
     
 }

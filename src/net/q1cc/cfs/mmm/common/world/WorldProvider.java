@@ -27,23 +27,26 @@ public abstract class WorldProvider {
         r=new Random(seed);
     }
     
-    public abstract void provideSubtree(WorldOctree oc, Vec3f position);
+//    public abstract void provideSubtree(WorldOctree oc, Vec3f position);
     
     public Vec3d spawnPoint() {
         r.setSeed(seed ^ 20343817869306411L); //some random.org value
         double maxXZ = WorldOctree.getSidelength(WorldOctree.highestSubtreeLvl - 1);
-        Vec3d sp = new Vec3d(r.nextDouble() * maxXZ, 5, r.nextDouble() * maxXZ);
-        //TODO move as high as needed to spawn properly
+        Vec3d sp = new Vec3d(r.nextDouble() * maxXZ, -15, r.nextDouble() * maxXZ);
+        sp.x = Math.round(sp.x); sp.z = Math.round(sp.z);
+        //TODO move down/up to ground
         //and select another point if this takes too long
-        //just for show, spawn a torch there.
-        WorldOctree w = WorldOctree.getOctreeAt(sp, 0, world.generateOctree, true);
-        if (w.block == null) {
-            w.block = new Chunklet((int) w.position.x, (int) w.position.y, (int) w.position.z, w);
-        }
-        w.block.blocks[Chunklet.getBlockIndex(sp)] = BlockInfo.get(BlockInfo.LIGHTSTONE);
+        //just for show, spawn a lightstone there.
+        //WorldOctree w = WorldOctree.getOctreeAt(sp, 0, world.generateOctree, true);
+        //if (w.block == null) {
+        //    w.block = new Chunklet((int) w.position.x, (int) w.position.y, (int) w.position.z, w);
+        //}
+        //w.block.blocks[Chunklet.getBlockIndex(sp)] = BlockInfo.create(BlockInfo.LIGHTSTONE);
         System.out.println("spawnpoint: " + sp);
-        System.out.println("spawnTree: " + w);
+        //System.out.println("spawnTree: " + w);
         return sp;
     }
+
+    public abstract Chunklet provideChunklet(int x, int y, int z);
     
 }

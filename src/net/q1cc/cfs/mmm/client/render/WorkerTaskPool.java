@@ -5,7 +5,9 @@
 package net.q1cc.cfs.mmm.client.render;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedList;
+import java.util.concurrent.PriorityBlockingQueue;
 
 /**
  * Holds all the Worker Tasks to be done.
@@ -14,18 +16,27 @@ import java.util.LinkedList;
  */
 public class WorkerTaskPool {
     
-    //TODO replace with priority queue
-    ArrayList<WorkerTask> tasks = new ArrayList<WorkerTask>();
-    
     Worker[] workers;
     boolean workersIdle=true;
     boolean workerIdle=true;
     private boolean shutdown=false;
     
-    private final Object lock = new Object();
+    public static int maxThreads = 1;
+        
+    private final PriorityBlockingQueue<WorkerTask> tasks;
+    
+    public WorkerTaskPool() {
+        tasks = new PriorityBlockingQueue<WorkerTask>(500, new Comparator<WorkerTask>() {
+            @Override
+            public int compare(WorkerTask o1, WorkerTask o2) {
+                return o2.getPriority()-o1.getPriority();
+            }
+        });
+    }
     
     public void initWorkers() {
-        int num = 1;//Runtime.getRuntime().availableProcessors();
+        int num = Runtime.getRuntime().availableProcessors();
+        num = Math.min(num, maxThreads);
         workers = new Worker[num];
         for(int i=0;i<num;i++){
             workers[i]=new Worker(this);
@@ -42,10 +53,10 @@ public class WorkerTaskPool {
      */
     public boolean finishWorkers() {
         shutdown=true;
-        if(!tasks.isEmpty()){
+        while(!tasks.isEmpty()){
             synchronized(this){
                 try {
-                    wait();
+                    wait(1000);
                 } catch (InterruptedException ex) {}
             }
         }
@@ -67,48 +78,24 @@ public class WorkerTaskPool {
         if(shutdown){
             return false;
         }
-        synchronized(lock){
-            tasks.add(task);
-            /// wake them up
-            workersIdle = false;
-            if(workerIdle){
-                workerIdle=false;
-                for (int i = 0; i < workers.length; i++) {
-                    synchronized (workers[i]) {
-                        workers[i].notifyAll();
-                        workers[i].wasIdle=false;
-                    }
+        tasks.add(task);
+        /// wake them up
+        workersIdle = false;
+        if(workerIdle){
+            workerIdle=false;
+            for (int i = 0; i < workers.length; i++) {
+                synchronized (workers[i]) {
+                    workers[i].notifyAll();
+                    workers[i].wasIdle=false;
                 }
             }
         }
         return true;
     }
     
-    public WorkerTask pop(){
-        WorkerTask ret;
-        synchronized(lock){
-            if(tasks.size()<1) {
-                workersIdle=true;
-                workerIdle=true;
-                if(shutdown){
-                    synchronized(this){
-                        this.notifyAll();
-                    }
-                }
-                return null;
-            }
-            ret=tasks.get(0);
-        
-            for(WorkerTask t:tasks){
-                if(t.getPriority()>ret.getPriority()){
-                    ret=t;
-                }
-                if(ret.getPriority()>=WorkerTask.PRIORITY_MAX){
-                    break;
-                }
-            }
-            tasks.remove(ret);
-        }
-        return ret;
+    public synchronized WorkerTask pop(){
+        if(tasks.isEmpty()) 
+            return null;
+        return tasks.remove();
     }
 }

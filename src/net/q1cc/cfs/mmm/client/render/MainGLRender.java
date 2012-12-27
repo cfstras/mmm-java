@@ -5,13 +5,16 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.FloatBuffer;
-import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.LinkedList;
-import java.util.Vector;
+import java.util.List;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import javax.swing.JOptionPane;
 import net.q1cc.cfs.mmm.client.Client;
 import net.q1cc.cfs.mmm.common.Player;
+import net.q1cc.cfs.mmm.common.blocks.BlockInfo;
+import net.q1cc.cfs.mmm.common.world.ChunkletManager;
 import net.q1cc.cfs.mmm.common.world.World;
 import net.q1cc.cfs.mmm.common.world.WorldOctree;
 import org.lwjgl.BufferUtils;
@@ -21,6 +24,7 @@ import org.lwjgl.input.Keyboard;
 import org.lwjgl.input.Mouse;
 import org.lwjgl.opengl.*;
 import static org.lwjgl.opengl.GL11.*;
+import static org.lwjgl.opengl.GL12.GL_TEXTURE_MAX_LEVEL;
 import static org.lwjgl.opengl.GL13.GL_TEXTURE0;
 import static org.lwjgl.opengl.GL13.glActiveTexture;
 import static org.lwjgl.opengl.GL15.*;
@@ -37,8 +41,7 @@ public class MainGLRender extends Thread {
     public WorkerTaskPool taskPool = Client.instance.taskPool;
     
     ConcurrentLinkedDeque<GLChunklet> chunksToBuffer = new ConcurrentLinkedDeque<GLChunklet>();
-    Vector<GLChunklet> chunksBuffered = new Vector<GLChunklet>(50); //this has to be threadsafe.
-    private ChunkletManager chunkletManager;
+    final List<GLChunklet> chunksBuffered = Collections.synchronizedList(new LinkedList<GLChunklet>());
     public GLGarbageCollector garbageCollector = new GLGarbageCollector();
     
     private boolean fullscreen = false;
@@ -56,13 +59,14 @@ public class MainGLRender extends Thread {
     int basicShader;
     int attPos;
     int attTex;
-    //int attOrient;
+    int attTexID;
     int attColor;
     //int attBlock;
     
     int uniBlockTex;
     int uniProjMat;
     int uniPosChunkMat;
+    int uniNumBlocks;
     
     Texture blockTexture;
    
@@ -80,6 +84,7 @@ public class MainGLRender extends Thread {
      * the number of chunklets successfully rendered in the current frame.
      */
     private int chunkletsRendered;
+    private int vertsRendered;
     
     public MainGLRender(World world){
         this.world=world;
@@ -112,6 +117,7 @@ public class MainGLRender extends Thread {
     }
     
     private void loadShaders() {
+        //TODO make shader helper class
         String[] fragSource = null;
         String[] vertSource = null;
         try {
@@ -155,13 +161,14 @@ public class MainGLRender extends Thread {
         
         attPos = glGetAttribLocation(basicShader, "inPos");
         attTex = glGetAttribLocation(basicShader, "inTex");
-        //attOrient = glGetAttribLocation(basicShader, "inOrient");
+        attTexID = glGetAttribLocation(basicShader, "inTexID");
         attColor = glGetAttribLocation(basicShader, "inColor");
         //attBlock = glGetAttribLocation(basicShader, "inBlock");
         
         uniPosChunkMat = glGetUniformLocation(basicShader, "posChunkMat");
         uniProjMat = glGetUniformLocation(basicShader, "projMat");
         uniBlockTex = glGetUniformLocation(basicShader, "blockTex");
+        uniNumBlocks = glGetUniformLocation(basicShader,"numBlocks");
     }
     private static String[] readString(InputStream in) throws IOException {
         BufferedReader i = new BufferedReader(new InputStreamReader(in));
@@ -180,6 +187,7 @@ public class MainGLRender extends Thread {
         }
         if(Display.isCloseRequested()) {                     // Exit if window is closed
             exiting = true;
+            world.exiting = true;
         }
         if(Keyboard.isKeyDown(Keyboard.KEY_F11) && !f11) {    // Is F11 Being Pressed?
             f11 = true;                                      // Tell Program F1 Is Being Held
@@ -190,18 +198,6 @@ public class MainGLRender extends Thread {
         }
         if(Keyboard.isKeyDown(Keyboard.KEY_F5)&&!f5) {
             loadShaders();
-            taskPool.add(new WorkerTask(){
-            @Override
-            public synchronized boolean doWork() {
-                prepareAllChunklets(true);
-                return true;
-            }
-
-            @Override
-            public int getPriority() {
-                return WorkerTask.PRIORITY_MAX;
-            }
-        });
             f5=true;
         } else {
             f5=false;
@@ -227,10 +223,7 @@ public class MainGLRender extends Thread {
         }
         if(left||right||forward||back){
             player.move(forward, left, right, back, false);
-            //if(taskPool.tasks.contains(chunkletManager)) {
-            //    taskPool.add(chunkletManager);
-            //}
-            taskPool.add(chunkletManager);
+            taskPool.add(world.chunkletManager);
         }
         
         if(Mouse.isGrabbed()){
@@ -247,6 +240,7 @@ public class MainGLRender extends Thread {
             
         } else if(Mouse.isButtonDown(0) && !Mouse.isGrabbed()) {
             Mouse.setGrabbed(true);
+            Mouse.setClipMouseCoordinatesToWindow(false);
         }
         
     }
@@ -275,6 +269,7 @@ public class MainGLRender extends Thread {
         // wireframe mode
         //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         glUseProgram(basicShader);
+        glUniform1i(uniNumBlocks, BlockInfo.numTextures);
         glUniformMatrix4(uniProjMat,false,projMatB);
         glUniformMatrix4(uniPosChunkMat,false,posChunkMatB);
         
@@ -282,16 +277,27 @@ public class MainGLRender extends Thread {
         blockTexture.bind();
         glUniform1i(uniBlockTex,0);
         
-        //TODO all the render methods here
         chunkletsRendered=0;
-        renderOctree(world.generateOctree);
+        vertsRendered = 0;
+        synchronized(chunksBuffered) {
+            Iterator<GLChunklet> it = chunksBuffered.iterator();
+            GLChunklet g;
+            while(it.hasNext()) {
+                g=it.next();
+                if(!renderChunklet(g)){
+                    //it.remove(); //return false means chunklet is not buffered anymore
+                    //taskPool.add(g); //TODO fix this
+                }
+                //chunkletManager.checkNode(g.parent);
+            }
+        }
+        
         //System.out.println("chunklets: "+chunkletsRendered);
         //TODO HUD here
         
-        //TODO check if there is time
         //now to buffer some chunks
         if(!chunksToBuffer.isEmpty()){
-            for(int i=0;i<10;i++){ //TODO do as many as time allows us to
+            for(int i=0;i<1;i++){ //TODO do as many as time allows us to
                 if(!chunksToBuffer.isEmpty())
                     bufferChunk(chunksToBuffer.pop());
                 else
@@ -318,9 +324,11 @@ public class MainGLRender extends Thread {
         try {
             Display.setFullscreen(fullscreen);
             DisplayMode d[] = Display.getAvailableDisplayModes();
+            
             displayMode=d[0];
             for (int i = 1; i < d.length; i++) {
-                if (d[i].getWidth() == 1440
+                System.out.println(d[i]);
+                if (d[i].getWidth() == 800
                     && d[i].getBitsPerPixel() == 32) {
                     displayMode = d[i];
                     break;
@@ -334,8 +342,8 @@ public class MainGLRender extends Thread {
             //attrib = attrib.withForwardCompatible(true);
             //attrib = attrib.withProfileCompatibility(true);
             //attrib = attrib.withDebug(true);
-            PixelFormat pf = new PixelFormat(8,16,0,1);
-            Display.create(pf);
+            //PixelFormat pf = new PixelFormat(8,16,0,1);
+            Display.create();
             
         } catch (LWJGLException ex) {
             ex.printStackTrace();
@@ -345,25 +353,12 @@ public class MainGLRender extends Thread {
         
         // start loading the world and converting chunklets to glchunklets
         
-        //since we have the full world already (debug mode), just convert all chunklets
-        taskPool.add(new WorkerTask(){
-            @Override
-            public synchronized boolean doWork() {
-                prepareAllChunklets(false);
-                return true;
-            }
-
-            @Override
-            public int getPriority() {
-                return WorkerTask.PRIORITY_MAX;
-            }
-        });
-        chunkletManager = new ChunkletManager(this);
-        taskPool.add(chunkletManager);
+        world.chunkletManager = new ChunkletManager(world);
         
         createWindow();
         Mouse.setGrabbed(false);
         initGL();
+        taskPool.add(world.chunkletManager);
     }
 
     private void initGL() {
@@ -386,8 +381,8 @@ public class MainGLRender extends Thread {
     
     private void cleanup() {
         System.out.println("cleaning up...");
-        //TODO delete all chunklets from memory
-        
+        world.unload();
+        System.out.println("waiting for memory to unload...");
         Display.destroy();
         taskPool.finishWorkers();
         System.out.println("finis.");
@@ -422,34 +417,27 @@ public class MainGLRender extends Thread {
         
         if (time - lastFPS > 1000) {
             Display.setTitle(windowTitle+ " FPS: " + fps +" deltaT: "+deltaTime+
-                    " rot: "+player.rotation+ " c: "+chunkletsRendered);
+                    " rot: "+player.rotation+ "pos:"+player.position+
+                    " c: "+chunkletsRendered+" v:"+vertsRendered/1000+"k");
             fps = 0; //reset the FPS counter
             lastFPS += 1000; //add one second
         }
         fps++;
     }
     
-    void prepareAllChunklets(boolean reload) {
-        recursePrepare(world.generateOctree,reload);
-    }
-    
     public void recursePrepare(WorldOctree oc, boolean reload){
+        //TODO move this to chunkletManager (?)
         if(oc==null) return;
-        if(oc.block!=null){
-            if(!reload){
+        synchronized(oc) {
+            if(oc.block!=null){
                 if(!(oc.block instanceof GLChunklet)){
                     GLChunklet n = new GLChunklet(oc.block);
-                    oc.block = n;
-                    taskPool.add(n);
-                } else {
-                    GLChunklet n = (GLChunklet) oc.block;
-                    if(!n.built){
-                        taskPool.add(n);
-                    }
+                    oc.block=n;
+                    n.build();
+                } else if(oc.block instanceof GLChunklet){
+                    GLChunklet n = (GLChunklet)oc.block;
+                    n.build();
                 }
-            } else if(oc.block instanceof GLChunklet){
-                ((GLChunklet)oc.block).built=false;
-                taskPool.add((GLChunklet)oc.block);
             }
         }
         if(!oc.hasSubtrees) return;
@@ -459,34 +447,39 @@ public class MainGLRender extends Thread {
     }
     
     private void bufferChunk(GLChunklet cl) {
-        synchronized(cl.parent){
-            if(!cl.built || cl.vertexB==null){
+        synchronized(cl){
+            //TODO move this to GLChunklet to simplify synchronization
+            if(!cl.built || cl.vertexBB==null || cl.empty==true || !cl.awaitingBuffering){
                 return;
             }
-            //TODO check if we still need this one
+            //TODO check if we still need this chunk or if it's already too far away
             int vboID = glGenBuffers();
-            int iboID = glGenBuffers();
+            //int iboID = glGenBuffers();
             int vaoID = glGenVertexArrays();
             glBindVertexArray(vaoID);
             glBindBuffer(GL_ARRAY_BUFFER, vboID);
-            glBufferData(GL_ARRAY_BUFFER, cl.vertexB, GL_STATIC_DRAW);
-            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,iboID);
-            glBufferData(GL_ELEMENT_ARRAY_BUFFER,cl.indexB,GL_STATIC_DRAW);
+            glBufferData(GL_ARRAY_BUFFER, cl.vertexBB, GL_STATIC_DRAW);
+            //glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,iboID);
+            //glBufferData(GL_ELEMENT_ARRAY_BUFFER,cl.indexB,GL_STATIC_DRAW);
             glEnableVertexAttribArray(attPos);
             glEnableVertexAttribArray(attColor);
             glEnableVertexAttribArray(attTex);
-            glVertexAttribPointer(attPos, 3, GL_FLOAT, false, 4*8, 4*0);
-            glVertexAttribPointer(attTex, 2, GL_FLOAT, false, 4*8, 4*3);
-            glVertexAttribPointer(attColor, 4, GL_UNSIGNED_BYTE, false, 4*8, 4*5);
+            glEnableVertexAttribArray(attTexID);
+            glVertexAttribPointer(attPos, 3, GL_UNSIGNED_BYTE, false, GLChunklet.VERTEX_SIZE_BYTES, 0);
+            glVertexAttribPointer(attColor, 3, GL_UNSIGNED_BYTE, true, GLChunklet.VERTEX_SIZE_BYTES, 3);
+            glVertexAttribPointer(attTexID, 1, GL_UNSIGNED_SHORT, false, GLChunklet.VERTEX_SIZE_BYTES, 6);
+            glVertexAttribPointer(attTex, 2, GL_UNSIGNED_BYTE, true, GLChunklet.VERTEX_SIZE_BYTES, 8);
             glBindVertexArray(0);
             cl.vboID = vboID;
             cl.vaoID = vaoID;
-            cl.iboID = iboID;
-            //glBindBuffer(GL_ARRAY_BUFFER,0);
-            //glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,0);
-            cl.loaded=true;
+            //cl.iboID = iboID;
+            cl.awaitingBuffering=false;
+            cl.buffered=true;
+            cl.cleanupCache();
         }
-        chunksBuffered.add(cl);
+        synchronized(chunksBuffered) {
+            chunksBuffered.add(cl); //TODO move this to a new thread?
+        }
     }
 
     private void renderOctree(WorldOctree oc) {
@@ -495,20 +488,7 @@ public class MainGLRender extends Thread {
             synchronized(oc){
                 if(oc.block!=null && oc.block instanceof GLChunklet) {
                     GLChunklet g = (GLChunklet)oc.block;
-                    if(g.loaded && g.vaoID!=-1 && g.blocksInside>0){
-                        Matrix4f posChunkMatn = new Matrix4f(posChunkMat);
-                        posChunkMatn.translate(new Vector3f(g.posX,g.posY,g.posZ));
-                        posChunkMatn.store(posChunkMatB);
-                        posChunkMatB.flip();
-                        glUniformMatrix4(uniPosChunkMat, false, posChunkMatB);
-
-                        //render this
-                        glBindVertexArray(g.vaoID);
-                        glDrawElements(GL_TRIANGLES, g.indCount, GL_UNSIGNED_INT, 0);
-                        //TODO if rendering is fine, remove this call (leave it to debug)
-                        glBindVertexArray(0);
-                        chunkletsRendered++;
-                    }
+                    renderChunklet(g);
                 }
             }
         }
@@ -516,6 +496,32 @@ public class MainGLRender extends Thread {
         for(WorldOctree s:oc.subtrees){
             renderOctree(s);
         }
+    }
+    
+    /**
+     * renders a GLChunklet to screen.
+     * needs to run in OpenGL thread
+     * @param the chunklet to draw
+     * @return false if chunklet is not buffered and should be removed
+     */
+    private boolean renderChunklet(GLChunklet g) {
+        if (g.buffered && g.vaoID != -1 && g.blocksInside > 0 && !g.awaitingVRAMCleanup) {
+            Matrix4f posChunkMatn = new Matrix4f(posChunkMat);
+            posChunkMatn.translate(new Vector3f(g.posX, g.posY, g.posZ));
+            posChunkMatn.store(posChunkMatB);
+            posChunkMatB.flip();
+            glUniformMatrix4(uniPosChunkMat, false, posChunkMatB);
+            //render this
+            glBindVertexArray(g.vaoID);
+            //glDrawElements(GL_TRIANGLES, g.indCount, GL_UNSIGNED_INT, 0);
+            glDrawArrays(GL_TRIANGLES, 0, g.vertCount);
+            //TODO if rendering is fine, remove glBind*(0) calls
+            glBindVertexArray(0);
+            chunkletsRendered++;
+            vertsRendered += g.vertCount;
+            return true;
+        }
+        return false;
     }
 
     private static int lastError=0;
@@ -540,7 +546,7 @@ public class MainGLRender extends Thread {
         displayMode = Display.getDisplayMode();
         glViewport(0, 0, displayMode.getWidth(), displayMode.getHeight());
         System.out.println(displayMode);
-        projMat = getProjection(80,
+        projMat = getProjection(90,
                 (float) displayMode.getWidth() / (float) displayMode.getHeight(),
                 0.1f, 1000.0f);
         projMatB = BufferUtils.createFloatBuffer(16);
@@ -579,8 +585,9 @@ public class MainGLRender extends Thread {
         texL= new TextureLoader();
         try {
             glActiveTexture(GL_TEXTURE0);
-            Texture b = texL.getTexture("/png/blocks.png", GL_TEXTURE_2D,GL_RGB,
-                    GL_LINEAR,GL_NEAREST);
+            Texture b = texL.getTextureArr("/png/blocks.png", GL_TEXTURE_2D_ARRAY,GL_RGB,
+                    GL_NEAREST_MIPMAP_LINEAR,GL_NEAREST,
+                    BlockInfo.numTextures);
             //JOptionPane.showMessageDialog(Display.getParent(),"Texture loaded:"+b );
             if(b==null){
                 System.out.println("error: texture could not be loaded.");
@@ -588,10 +595,11 @@ public class MainGLRender extends Thread {
             } else {
                 blockTexture=b;
                 b.bind();
-                glGenerateMipmap(GL_TEXTURE_2D);
-                glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_CLAMP);
-                glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_CLAMP);
-                glBindTexture(GL_TEXTURE_2D,0);
+                glGenerateMipmap(GL_TEXTURE_2D_ARRAY);
+                glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAX_LEVEL, 4); //for 16x16 textures
+                glTexParameteri(GL_TEXTURE_2D_ARRAY,GL_TEXTURE_WRAP_S,GL_REPEAT);
+                glTexParameteri(GL_TEXTURE_2D_ARRAY,GL_TEXTURE_WRAP_T,GL_REPEAT);
+                glBindTexture(GL_TEXTURE_2D_ARRAY,0);
             }
         } catch (IOException ex) {
             ex.printStackTrace();

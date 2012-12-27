@@ -25,7 +25,7 @@ class Physics {
     static Vec3f getCollision(Entity ent, Vec3f translation) {
         WorldOctree oc = ent.myLastOctree;
         if(oc==null) {
-            oc = Client.instance.world.generateOctree;
+            //oc = Client.instance.world.generateOctree;
         }
         oc = WorldOctree.getOctreeAt(new Vec3d(ent.position), 0, oc, false);
         //TODO

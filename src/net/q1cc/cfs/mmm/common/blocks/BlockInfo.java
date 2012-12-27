@@ -1,7 +1,3 @@
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
 package net.q1cc.cfs.mmm.common.blocks;
 
 import net.q1cc.cfs.mmm.common.world.Block;
@@ -13,11 +9,6 @@ import org.lwjgl.util.ReadableColor;
  * @author claus
  */
 public class BlockInfo {
-    //deprecated
-    //public static final Block TORCH= new Block(false,0.7f, new Color(240, 220, 0, 100),false,0);
-    //public static final Block DIRT= new Block(true,0.0f, new Color(255, 255, 255, 255),true,1);
-    //public static final Block GRASS= new Block(true,0.0f, new Color(140, 255, 100, 255),true,2);
-    //public static final Block STONE= new Block(true,0.0f, new Color(255, 255, 255, 255),true,0);
     
     //use these.
     public static final BlockInfo[] blocks = {
@@ -26,14 +17,14 @@ public class BlockInfo {
         new BlockInfo(  0, "Rock"      , 1.0f, true, true, true, 0.0f, 1.0f, 0, 0, 0, 0, 0, 0),
         new BlockInfo(  1, "Dirt"      , 1.0f, true, true, true, 0.0f, 1.0f, 1, 1, 1, 1, 1, 1),
         new Grass    (  2, "Grass"     , 1.0f, true, true, true, 0.0f, 1.0f, 2, 1, 3, 3, 3, 3),
-        new BlockInfo(  3, "Lightstone", 1.0f,false, true, true,16.0f, 1.0f,12,12,12,12,12,12),
+        new BlockInfo(  3, "Lightstone", 1.0f,false, true, true,16.0f, 1.0f,11,11,11,11,11,11),
         new BlockInfo(  4, "Sand"      , 1.0f, true, true, true, 0.0f, 1.0f, 6, 6, 6, 6, 6, 6),
-        new BlockInfo(  5, "Wood"      , 1.0f, true, true, true, 0.0f, 1.0f, 8, 8, 7, 7, 7, 7),
+        new BlockInfo(  5, "Wood"      , 1.0f, true, true, true, 0.0f, 1.0f, 7, 7, 8, 8, 8, 8),
         new BlockInfo(  6, "Stone"     , 1.0f, true, true, true, 0.0f, 1.0f, 4, 4, 4, 4, 4, 4),
         new BlockInfo(  7, "Leaves"    , 1.0f, true, true, true, 0.0f, 1.0f, 9, 9, 9, 9, 9, 9),
-        new BlockInfo(  8, "Stone"     , 1.0f, true, true, true, 0.0f, 1.0f, 0, 0, 0, 0, 0, 0),
-        new BlockInfo(  9, "Stone"     , 1.0f, true, true, true, 0.0f, 1.0f, 0, 0, 0, 0, 0, 0),
-        new BlockInfo( 10, "Stone"     , 1.0f, true, true, true, 0.0f, 1.0f, 0, 0, 0, 0, 0, 0),
+        new BlockInfo(  8, "Nullium"   , 1.0f,false,false,false, 0.0f, 1.0f, 0, 0, 0, 0, 0, 0),
+        new BlockInfo(  9, "Nullium"   , 1.0f,false,false,false, 0.0f, 1.0f, 0, 0, 0, 0, 0, 0),
+        new BlockInfo( 10, "Nullium"   , 1.0f,false,false,false, 0.0f, 1.0f, 0, 0, 0, 0, 0, 0),
     };
     
     /* quick accessors */
@@ -46,8 +37,11 @@ public class BlockInfo {
     public final static int STONE = 6;
     public final static int LEAVES = 7;    
     
-    /* block attributes */
+    /*infos for main texture file*/
+    public final static int numTextures = 64;
+    public final static int textureRes = 16;
     
+    /* block attributes */
     public final String name;
     public final int id;
     public final float height;
@@ -71,7 +65,7 @@ public class BlockInfo {
         else if(side==3) return texRight;
         else if(side==4) return texFront;
         else if(side==5) return texBack;
-        else return -1;
+        else return texTop;
     }
     
     /**
@@ -80,7 +74,7 @@ public class BlockInfo {
      * @return color
      */
     public ReadableColor getColor() {
-        return new Color(255,255,255,255);
+        return new Color(127,127,127,255);
     }
     
     private static int blocksCreated=0;
@@ -90,7 +84,7 @@ public class BlockInfo {
      * @param id
      * @return 
      */
-    public static Block get(int id) {
+    public static Block create(int id) {
         //BlockInfo i = blocks[id];
         blocksCreated++;
         if(blocksCreated%2097152==0){

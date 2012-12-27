@@ -313,7 +313,7 @@ public class WorldOctree implements Serializable{
 //        if((spID&1)==0){ //-x, get +x of parent parent
 //            int sppID=parent.getSPID();
 //            surr[0]=parent.parent.subtrees[sppID].subtrees[spID|1];
-//        } //TODO build recursive getAdjecent
+//        }
 //        
 //        return surr;
     }
@@ -332,7 +332,7 @@ public class WorldOctree implements Serializable{
      * @return 
      */
     public WorldOctree getAdjecent(int side){
-        //TODO make a more efficient version of this
+        //TODO make a more efficient version of getAdjecent
         Vec3d nPos = new Vec3d(position);
         if (side == 0) { //top
             nPos.y+=getSidelength(subtreeLvl);

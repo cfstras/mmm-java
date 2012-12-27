@@ -59,7 +59,6 @@ public class Cubed {
     public boolean intersects(Cubed other){
         //TODO implement cube intersects cube
         
-        
         return false;
     }
     
