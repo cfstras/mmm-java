@@ -25,7 +25,7 @@ public class WorkerTaskPool {
     private final Object lock = new Object();
     
     public void initWorkers() {
-        int num = Runtime.getRuntime().availableProcessors();
+        int num = 1;//Runtime.getRuntime().availableProcessors();
         workers = new Worker[num];
         for(int i=0;i<num;i++){
             workers[i]=new Worker(this);
