@@ -1,2 +1,2 @@
-"C:\Program Files (x86)\Java\jre7\bin\java.exe" -Xmx1300m -jar dist/mmm-java.jar
+java -Xmx1300m java -Xmx1300m -cp "lib/lwjgl.jar:lib/jinput.jar:lib/lwjgl-debug.jar:lib/lwjgl_util.jar:dist/mmm-java.jar" net.q1cc.cfs.mmm.client.Client
 pause

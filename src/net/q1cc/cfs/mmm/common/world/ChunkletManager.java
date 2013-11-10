@@ -27,24 +27,24 @@ public class ChunkletManager implements WorkerTask {
      * initial viewDistance, in chunklets.
      * update with updateViewDistance()
      */
-    private static int viewDist = 8;
-    
+    private static int viewDist = 32;
+
     private static int viewDistSqM;
     private static int cslh;
     static float maxWalkDistanceSq;
-    
+
     boolean working;
     //int[] needed;
-    
+
     World world;
     Player player;
     Vec3f lastLoadPlayerPosition;
-    
+
     public ChunkletManager(World world) {
         this.world = world;
         updateViewDistance(viewDist);
     }
-    
+
     public static void updateViewDistance(int distance) {
         viewDist = distance;
         viewDistSqM = distance*Chunklet.csl2;
@@ -60,7 +60,7 @@ public class ChunkletManager implements WorkerTask {
 
     @Override
     public boolean doWork() {
-        
+
         if(world.exiting){
             return false;
         }
@@ -80,13 +80,13 @@ public class ChunkletManager implements WorkerTask {
                 .lengthSquared() >= maxWalkDistanceSq) {
             //we have moved, reload!
             lastLoadPlayerPosition = new Vec3f(player.position);
-            
+
             if (working == true) {
                 System.out.println("chunklet manager double-run");
                 return false;
             }
             working = true;
-            
+
             //listNeeded();
             removeList(world.generateChunklets);
             //now add some
@@ -124,7 +124,7 @@ public class ChunkletManager implements WorkerTask {
 //            loadNode(oc,mid);
 //        }
 //    }
-    
+
     void checkChunklet(GLChunklet g) {
         Vec3f mid = new Vec3f((float)g.posX+cslh,(float)g.posY+cslh,(float)g.posZ+cslh);
         float distSq = Vec3f.subtract(lastLoadPlayerPosition,mid).lengthSquared();
@@ -134,7 +134,7 @@ public class ChunkletManager implements WorkerTask {
             //loadChunklet(g); //TODO reload Chunklet if still in memory
         }
     }
-    
+
     private void removeChunklet(GLChunklet g) {
         //if(g.parent!=null) {
         //    g.parent.block=null;
@@ -142,7 +142,7 @@ public class ChunkletManager implements WorkerTask {
         g.cleanupCache();
         g.cleanupVRAMCache();
     }
-    
+
     private void removeNode(WorldOctree oc) {
         GLChunklet glc;
         Chunklet c = oc.block;
@@ -222,7 +222,7 @@ public class ChunkletManager implements WorkerTask {
                     mid = new Vec3f((float) ix*Chunklet.csl+cslh+lastLoadPlayerPosition.x,
                             (float) iy*Chunklet.csl+cslh+lastLoadPlayerPosition.y,
                             (float) iz*Chunklet.csl+cslh+lastLoadPlayerPosition.z);
-                    
+
                     float distSq = Vec3f.subtract(lastLoadPlayerPosition, mid).lengthSquared();
                     if (distSq <= viewDistSqM) {
                         c=null;
@@ -269,5 +269,5 @@ public class ChunkletManager implements WorkerTask {
             }
         }
     }
-    
+
 }
